@@ -1,17 +1,219 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Invoice Form</title>
-  <!-- Fast redirect to main.html for Cloudflare Pages root -->
-  <meta http-equiv="refresh" content="0;url=/main.html">
-  <script>
-    // Fallback JS redirect for clients that don't honor meta refresh
-    window.location.replace('/main.html');
-  </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>معلومات الوصل</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=20250922">
+
+        <!-- Prevent aggressive caching on mobile during development -->
+        <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+        <meta http-equiv="Pragma" content="no-cache">
+        <meta http-equiv="Expires" content="0">
+        <!-- Inline override for last-name width to force newest layout while testing on mobile -->
+        <!-- <style>
+            :root { --last-name-width: 200px !important; }
+        </style> -->
 </head>
 <body>
-  <p>يتم إعادة التوجيه إلى الصفحة الرئيسية... <a href="/main.html">اذهب إلى الصفحة الرئيسية</a></p>
+    <div class="container" id="page1">
+        <img class="logo" src="https://i.ibb.co/vxdH8xQ2/Landscape-Dark-Cyan.png" alt="Logo">
+        <h1>معلومات الوصل</h1>
+        <form id="invoiceForm" autocomplete="off">
+            <div id="productsArea"></div>
+            <button type="button" class="add-product-btn" id="addProductBtn"><span style="font-size:1.3em;">&#43;</span> إضافة منتج</button>
+            <div class="section">
+                <div class="discount-options">
+                    <label><input type="radio" name="discountType" value="none" checked> بلا خصم</label>
+                    <label><input type="radio" name="discountType" value="fixed"> خصم ثابت</label>
+                    <input type="number" id="fixedDiscount" min="0" step="1000" value="10000" style="width:90px;display:none;">
+                    <label><input type="radio" name="discountType" value="percent"> خصم مئوي</label>
+                    <input type="number" id="percentDiscount" min="0" max="100" step="0.1" value="6" style="width:60px;display:none;">%
+                </div>
+                <div class="field-group" id="deliveryModeGroup" style="margin-bottom:8px;">
+                    <div class="delivery-options" style="display:flex;gap:12px;align-items:center;">
+                        <label style="cursor:pointer;display:inline-flex;align-items:center;"><input type="radio" name="deliveryMode" value="days" checked style="margin-left:6px;"> مدة التوصيل</label>
+                        <label style="cursor:pointer;display:inline-flex;align-items:center;"><input type="radio" name="deliveryMode" value="note" style="margin-left:6px;"> ملاحظة التوصيل</label>
+                        <label style="cursor:pointer;display:inline-flex;align-items:center;"><input type="radio" name="deliveryMode" value="direct" style="margin-left:6px;"> تجهيز مباشر</label>
+                    </div>
+                </div>
+                <div class="field-group" id="deliveryCostDiv">
+                    <label for="deliveryCost">كلفة التوصيل</label>
+                    <input type="number" id="deliveryCost" min="0" step="1000" value="10000">
+                </div>
+                <div class="field-group input-row" id="deliveryDaysDiv">
+                    <label for="deliveryDays" style="flex:1;">مدة التوصيل (يوم)</label>
+                    <div class="input-number-group">
+                        <button type="button" class="input-number-btn" onclick="changeDeliveryDays(-1)">&#8722;</button>
+                        <input type="number" id="deliveryDays" min="1" value="5" style="width:60px;">
+                        <button type="button" class="input-number-btn" onclick="changeDeliveryDays(1)">&#43;</button>
+                    </div>
+                </div>
+                <div class="field-group" id="deliveryNoteDiv" style="display:none;">
+                    <label for="deliveryNote">ملاحظة التوصيل</label>
+                    <textarea id="deliveryNote" rows="2" placeholder="ملاحظة التوصيل..."></textarea>
+                </div>
+                <div class="summary-row">
+                    <span>المجموع:</span>
+                    <strong id="totalAmount" style="display:inline;">0</strong>
+                    <input type="number" id="totalAmountInput" style="display:none;width:150px;" min="0">
+                    <button type="button" id="editTotalBtn" style="background:none;border:none;cursor:pointer;font-size:1.2em;vertical-align:middle;">
+                        <span id="editTotalIcon">✏️</span>
+                    </button>
+                </div>
+                <!-- مبلغ واصل integration -->
+                <div id="receivedSection" style="margin: 10px 0 0 0;">
+                    <label style="display:inline-flex;align-items:center;cursor:pointer;">
+                        <input type="checkbox" id="includeReceived" style="margin-left:6px;"> تضمين مبلغ واصل
+                    </label>
+                    <div id="receivedFieldsDiv" style="display:none; margin-top:8px;">
+                        <div class="field-group" style="margin-bottom:6px;">
+                            <label for="receivedAmountInput">المبلغ الواصل:</label>
+                            <input type="number" id="receivedAmountInput" min="0" style="width:120px;">
+                        </div>
+                        <div class="field-group">
+                            <label for="remainingAmountValue">المبلغ الباقي:</label>
+                            <span id="remainingAmountValue" style="font-weight:bold;">0</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- /مبلغ واصل integration -->
+                <button type="button" class="continue-btn" id="continueBtn">متابعة</button>
+            </div>
+        </form>
+    </div>
+    <div class="container" id="page2" style="display:none;">
+        <button type="button" class="back-btn" id="backBtn" title="رجوع">&#8592;</button>
+        <h1>معلومات الزبون</h1>
+        <form id="customerForm" autocomplete="off">
+            <!-- Find customer section -->
+            <section id="find-customer-section">
+                <h3 style="margin:0 0 6px 0;color:var(--primary);">إيجاد الزبون</h3>
+                <div class="find-customer-buttons">
+                    <button id="btn-messenger" type="button" title="مسنجر"><img class="icon-btn" src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/messenger.svg" alt="messenger"></button>
+                    <button id="btn-instagram" type="button" title="إنستغرام"><img class="icon-btn" src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/instagram.svg" alt="instagram"></button>
+                    <button id="btn-other" type="button" title="غير ذلك">
+                        <span style="display:inline-block;width:22px;height:22px;vertical-align:middle">
+                          <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-label="Not Available" width="22" height="22">
+                            <title>Not Available</title>
+                            <path d="M12 0a12 12 0 1 0 12 12A12 12 0 0 0 12 0Zm0 22a10 10 0 1 1 10-10 10 10 0 0 1-10 10Zm-6-11h12v2H6Z"/>
+                          </svg>
+                        </span>
+                    </button>
+                </div>
+                <div id="customer-list-box" style="display:none">
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <div id="customer-names" style="flex:1"></div>
+                        <button id="btn-next" type="button" style="display:none">⬅️</button>
+                    </div>
+                </div>
+                <div id="selected-customer-box" style="display:none"></div>
+            </section>
+            <div class="section">
+                <div class="field-group">
+                    <label for="customerName">الاسم الكامل</label>
+                    <input type="text" id="customerName" required>
+                </div>
+                <!-- First and Last name split (first name on the right, last name on the left) -->
+                <div class="field-group input-row" id="nameSplitGroup" style="gap:10px;">
+                    <div style="flex:1;">
+                        <label for="firstName">الاسم الأول</label>
+                        <input type="text" id="firstName" placeholder="الاسم الأول">
+                    </div>
+                    <div style="flex:1;">
+                        <label for="lastName">اسم العائلة</label>
+                        <input type="text" id="lastName" placeholder="اسم العائلة">
+                    </div>
+                </div>
+                <div class="field-group" style="position:relative;">
+                    <label for="customerPhone">رقم الهاتف</label>
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <input type="tel" id="customerPhone" required pattern="[0-9\-\+\s]{8,20}" inputmode="tel" maxlength="40" placeholder="   مثال: +9647701234567" style="flex:1;">
+                        <button type="button" id="phoneCheckBtn" style="background:none;border:none;cursor:pointer;font-size:1.3em;line-height:1;" title="تأكيد رقم الهاتف"><span id="phoneCheckIcon">✔️</span></button>
+                    </div>
+                    <div id="phoneError" style="color:#c00;font-size:0.95em;margin-top:2px;display:none;"></div>
+                </div>
+                <!-- تحديد الجنس -->
+                <div class="field-group" id="genderField">
+                    <label>تحديد الجنس</label>
+                    <div class="gender-buttons">
+                        <button type="button" id="genderFemaleBtn" class="gender-btn">أنثى</button>
+                        <button type="button" id="genderMaleBtn" class="gender-btn selected">ذكر</button>
+                    </div>
+                </div>
+                <!-- محافظة -->
+                <div class="field-group">
+                    <label for="governorate">المحافظة</label>
+                    <input type="text" id="governorate" name="governorate" readonly value="بغداد" style="cursor:pointer;background:#f9f9f9;" onclick="openGovernoratePopup()">
+                </div>
+                <div class="field-group">
+                    <label for="customerAddress">العنوان</label>
+                    <input type="text" id="customerAddress" required>
+                </div>
+                <div class="field-group">
+                    <label>الدافع</label>
+                    <div style="display:flex;flex-wrap:wrap;gap:10px;">
+                        <label><input type="checkbox" name="motivation" value="الإعجاب بالصفحة"> الإعجاب بالصفحة</label>
+                        <label><input type="checkbox" name="motivation" value="الإعجاب بالتعامل عبر الصفحة"> الإعجاب بالتعامل عبر الصفحة</label>
+                        <label><input type="checkbox" name="motivation" value="الإعجاب بالتعامل عبر البيع المباشر"> الإعجاب بالتعامل عبر البيع المباشر</label>
+                        <label><input type="checkbox" name="motivation" value="السعر مناسب"> السعر مناسب</label>
+                        <label><input type="checkbox" name="motivation" value="الإعجاب بالإعلانات"> الإعجاب بالإعلانات</label>
+                        <label><input type="checkbox" name="motivation" value="الإعجاب بطريقة العرض بالمعرض"> الإعجاب بطريقة العرض بالمعرض</label>
+                        <label><input type="checkbox" name="motivation" value="من طرف أحد الزبائن"> من طرف أحد الزبائن</label>
+                        <label><input type="checkbox" name="motivation" value="من عائلة الفراش الأبيض"> من عائلة الفراش الأبيض</label>
+                        <label><input type="checkbox" name="motivation" value="من المعارف أو الفريق أو الأصدقاء"> من المعارف أو الفريق أو الأصدقاء</label>
+                        <label><input type="checkbox" name="motivation" value="صدفة"> صدفة</label>
+                    </div>
+                </div>
+                <div class="field-group">
+                    <label for="platform">منصة الحجز</label>
+                    <select id="platform" required>
+                        <option value="فيسبوك">فيسبوك</option>
+                        <option value="انستغرام">انستغرام</option>
+                        <option value="واتساب">واتساب</option>
+                        <option value="مكالمة">مكالمة</option>
+                        <option value="مباشر فرع المنصور">مباشر فرع المنصور</option>
+                        <option value="مباشر فرع القاهرة">مباشر فرع القاهرة</option>
+                        <option value="مباشر فرع السيدية">مباشر فرع السيدية</option>
+                        <option value="مباشر من المعمل">مباشر من المعمل</option>
+                        <option value="الموقع الإلكتروني">الموقع الإلكتروني</option>
+                    </select>
+                </div>
+                <div class="field-group">
+                    <label for="customerType">فئة الزبون</label>
+                    <select id="customerType" required>
+                        <option value="جديد لعائلة الفراش الأبيض">جديد لعائلة الفراش الأبيض</option>
+                        <option value="من عائلة الفراش الأبيض">من عائلة الفراش الأبيض</option>
+                        <option value="من أصلاء عائلة الفراش الأبيض">من أصلاء عائلة الفراش الأبيض</option>
+                        <option value="صديق أو أحد الموظفين">صديق أو أحد الموظفين</option>
+                    </select>
+                </div>
+                <div class="field-group">
+                    <label for="motivationDetail">الدافع بالتفصيل <span style="color:#888;font-size:0.9em;">(اختياري)</span></label>
+                    <textarea rows=2 id="motivationDetail" placeholder="حبيت أطلب من الفراش الأبيض لأن..."></textarea>
+                </div>
+                <div class="field-group">
+                    <label for="notes">الملاحظات</label>
+                    <textarea id="notes" rows="2"></textarea>
+                </div>
+                <div class="field-group">
+                    <label for="salesPerson">اسم موظف المبيعات</label>
+                    <input type="text" id="salesPerson" required>
+                </div>
+                <button type="button" class="submit-btn" id="submitBtn">تسليم الوصل</button>
+            </div>
+        </form>
+    </div>
+    <div id="snackbar" class="snackbar">تم النسخ</div>
+    <!-- Popup for governorate selection -->
+    <div id="governoratePopup" class="modal" style="display:none;">
+      <div class="modal-content">
+        <span class="close" id="closeGovernoratePopup">&times;</span>
+        <h3 style="margin-bottom:10px;">اختر المحافظة</h3>
+        <div id="governorateList" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
+      </div>
+    </div>
+    <script src="script.js"></script>
 </body>
 </html>
