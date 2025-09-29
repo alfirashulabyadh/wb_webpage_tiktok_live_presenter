@@ -2395,7 +2395,8 @@ const API_BASE_URL = (function(){
         if (host === '127.0.0.1' || host === 'localhost') return 'http://127.0.0.1:8787';
     } catch(e) {}
     // Production: point to the invoice form worker domain
-    return 'https://invoice-form3425.whitebedding.net';
+    // return 'https://invoice-form3425.whitebedding.net';
+    return "https://invoice-form-worker.alfirashulabyadh-af4.workers.dev";
 })();
 const customersData = {
     messenger: [
