@@ -2298,33 +2298,61 @@ window.onclick = function(event) {
                     console.warn('Failed to hash client data', e);
                 }
 
-                // Send to worker /sales_receipt
+                // Create an order confirmation URL so the customer can confirm
+                // on orders.whitebedding.net. If create_order fails we fall back
+                // to immediately posting to /sales_receipt (legacy behavior).
+                let createdConfirmURL = null;
                 try {
-                    const resp = await fetch(API_BASE_URL + '/sales_receipt', {
+                    const createResp = await fetch(API_BASE_URL + '/create_order', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(json)
+                        body: JSON.stringify({ json, preview: str, ts: Date.now() })
                     });
-                    try {
-                        const j = await resp.json().catch(()=>null);
-                        console.log('sales_receipt response', j);
-                    } catch (e) {}
+                    const createJ = await createResp.json().catch(()=>null);
+                    if (createResp.ok && createJ && createJ.confirmURL) {
+                        createdConfirmURL = createJ.confirmURL;
+                        // Open confirmation page in a new tab so it runs independently
+                        try { window.open(createdConfirmURL, '_blank'); } catch(e) { /* ignore */ }
+                        // Copy confirmation link to clipboard for quick sending
+                        if (navigator.clipboard && window.isSecureContext) {
+                            try { await navigator.clipboard.writeText(createdConfirmURL); showSnackbar('تم إنشاء رابط التأكيد ونسخه'); }
+                            catch(e){ /* ignore clipboard errors */ showSnackbar('تم إنشاء رابط التأكيد'); }
+                        } else {
+                            // fallback copy
+                            try { fallbackCopyTextToClipboard(createdConfirmURL); showSnackbar('تم إنشاء رابط التأكيد'); } catch(e) {}
+                        }
+                    } else {
+                        console.warn('create_order did not return confirmURL, falling back', createJ);
+                    }
                 } catch (e) {
-                    console.error('sales_receipt fetch error', e);
-                    showSnackbar('فشل إرسال الطلب (يرجى المحاولة لاحقاً)');
+                    console.error('create_order error, falling back to sales_receipt', e);
+                }
+
+                // If create_order failed to produce a confirm URL, fall back to
+                // sending the sales_receipt immediately so data isn't lost.
+                if (!createdConfirmURL) {
+                    try {
+                        const resp = await fetch(API_BASE_URL + '/sales_receipt', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(json)
+                        });
+                        try { const j = await resp.json().catch(()=>null); console.log('sales_receipt response', j); } catch (e) {}
+                    } catch (e) {
+                        console.error('sales_receipt fetch error', e);
+                        showSnackbar('فشل إرسال الطلب (يرجى المحاولة لاحقاً)');
+                    }
                 }
 
                 // Also attempt to save a local copy by POSTing to /save_order_local
                 // This endpoint is optional and only useful if you run a local server
-                // that writes to disk (e.g., a Flask dev proxy). Fail silently.
+                // that writes to disk (e.g., a Flask dev proxy). Include confirmURL
+                // if we received one.
                 try {
-                    // POST to the worker's /save_order_local so local testing can
-                    // be done through `wrangler dev` (API_BASE_URL points to
-                    // 127.0.0.1:8787 when developing locally).
                     await fetch(API_BASE_URL + '/save_order_local', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ json, preview: str, ts: Date.now() })
+                        body: JSON.stringify({ json, preview: str, confirmURL: createdConfirmURL, ts: Date.now() })
                     }).catch(()=>{});
                 } catch (e) {}
 
