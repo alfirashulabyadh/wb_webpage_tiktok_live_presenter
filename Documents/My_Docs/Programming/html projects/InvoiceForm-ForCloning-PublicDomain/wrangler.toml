@@ -1,6 +1,11 @@
 name = "invoice-form-worker"
+account_id = "af46e3f60209bf974eef48ecede45f03"
 main = "./worker.js"
 compatibility_date = "2025-09-09"
+
+# Explicitly enable workers_dev to avoid warnings from Wrangler. Set to false
+# if you never want to use the workers.dev playground for this project.
+workers_dev = true
 
 # For persistent counters bind a KV namespace or Durable Object here and
 # reference the binding in the worker script instead of the in-memory map.
