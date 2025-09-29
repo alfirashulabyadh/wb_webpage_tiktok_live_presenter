@@ -1,0 +1,6 @@
+Attune the app into a fully functioning js or ts file without relying on any python files 🚀 DONE!
+Activate sending the events
+Host the resulting webapp into cloudflare
+Edit the remaining workarounds
+
+Based on the current project, I want to generate unlimited webpages for each customer. The current project is a form that's supposed to be filled by one of our employees after I host it inside cloudflare. I want the full info (filled out by the employee) to appear as an independent webpage that the customer checks and approves. How to do that?

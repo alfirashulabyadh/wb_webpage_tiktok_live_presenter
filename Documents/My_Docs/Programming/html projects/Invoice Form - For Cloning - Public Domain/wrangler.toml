@@ -1,0 +1,8 @@
+name = "invoice-form-worker"
+main = "./worker.js"
+compatibility_date = "2025-09-09"
+
+# For persistent counters bind a KV namespace or Durable Object here and
+# reference the binding in the worker script instead of the in-memory map.
+# Example:
+# kv_namespaces = [ { binding = "ORDER_COUNTER_KV", id = "<kv-id>" } ]
