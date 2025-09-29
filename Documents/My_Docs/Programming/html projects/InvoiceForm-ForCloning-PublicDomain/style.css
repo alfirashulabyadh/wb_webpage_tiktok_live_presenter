@@ -1,0 +1,527 @@
+:root {
+    --primary: #1282a2;
+    --secondary: #e0ae4c;
+    --bg: #f0f9fb;
+    --input-bg: #fdfdfd;
+    --success: #5b8c5a;
+    --error: #d9534f;
+    --radius: 18px;
+    --shadow: 0 2px 12px 0 rgba(18,130,162,0.07);
+    /* width used for the last-name column in the name split group on small screens */
+    --last-name-width: 1000px;
+    }
+    body {
+        font-family: 'Cairo', sans-serif;
+        background: var(--bg);
+        margin: 0;
+        color: #222;
+        min-height: 100vh;
+    }
+    .container {
+        max-width: 700px;
+        margin: 32px auto;
+        background: #fff;
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 32px 24px 24px 24px;
+    }
+    .logo {
+        display: block;
+        margin: 0 auto 24px auto;
+        max-width: 180px;
+    }
+    h1 {
+        text-align: center;
+        color: var(--primary);
+        margin-bottom: 32px;
+        font-size: 2rem;
+        letter-spacing: 1px;
+    }
+    .product-types {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 24px;
+        justify-content: center;
+    }
+    .product-type-btn {
+        background: var(--bg);
+        border: 2px solid var(--primary);
+        color: var(--primary);
+        border-radius: var(--radius);
+        padding: 10px 22px;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s;
+        min-width: 90px;
+        outline: none;
+    }
+    .product-type-btn.selected, .product-type-btn:focus {
+        background: var(--primary);
+        color: #fff;
+    }
+    .section {
+        margin-bottom: 28px;
+        background: var(--bg);
+        border-radius: var(--radius);
+        padding: 18px 14px;
+        box-shadow: 0 1px 6px 0 rgba(18,130,162,0.04);
+    }
+    .product-header {
+        background: var(--secondary);
+        color: #1a1a1a;
+        padding: 8px 12px;
+        border-radius: 12px;
+        font-weight: 800;
+        display: inline-block;
+        margin-bottom: 12px;
+        box-shadow: 0 2px 8px rgba(224,174,76,0.12);
+    }
+    .field-group {
+        margin-bottom: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    label {
+        font-weight: 500;
+        color: var(--primary);
+        margin-bottom: 2px;
+    }
+    input[type="text"], input[type="number"], select, textarea {
+        background: var(--input-bg);
+        border: 1.5px solid #dbe9ef;
+        border-radius: 10px;
+        padding: 8px 12px;
+        font-size: 1rem;
+        transition: border 0.15s;
+        outline: none;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    input:focus, select:focus, textarea:focus {
+        border-color: var(--primary);
+    }
+    .input-row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    /* Ensure two-column fields like first/last name look side-by-side */
+    /* Use grid for stable two-column layout so inputs don't wrap on narrow devices */
+    #nameSplitGroup {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 10px;
+        align-items: center;
+        width: 100%;
+    }
+    #nameSplitGroup > div { min-width: 0; }
+    #nameSplitGroup label { display:block; }
+    /* Make the name inputs look like a single-line underline instead of a rectangle */
+    #nameSplitGroup input {
+        width: 100%;
+        box-sizing: border-box;
+        background: transparent;
+        border: none;
+        border-bottom: 1.5px solid #dbe9ef;
+        border-radius: 0;
+        padding: 6px 4px;
+        font-size: 1rem;
+    }
+    #nameSplitGroup input:focus {
+        outline: none;
+        border-bottom-color: var(--primary);
+        background: transparent;
+    }
+
+    /* Small-screen adjustments: keep the two inputs side-by-side by making the last name narrow */
+    @media (max-width: 420px) {
+        /* keep the first and last name on the same line on most phones;
+           give the last-name column a little more breathing room for mobile input */
+    /* use a single variable so the last-name width is easy to change */
+    #nameSplitGroup { gap: 6px; grid-template-columns: 1.5fr 1fr; }
+    #nameSplitGroup label { display: none; }
+        /* small padding and slightly larger font for better readability on mobile */
+    #nameSplitGroup input { padding: 6px 4px; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    }
+
+    /* Very small screens: stack vertically as a last resort */
+    @media (max-width: 260px) {
+        #nameSplitGroup { grid-template-columns: 1fr; gap: 6px; }
+        #nameSplitGroup label { display: block; }
+        #nameSplitGroup input { white-space: normal; overflow: visible; text-overflow: clip; }
+    }
+    .input-number-group {
+        display: flex;
+        align-items: center;
+        gap: 0;
+    }
+    .input-number-btn {
+        background: var(--secondary);
+        border: none;
+        color: #fff;
+        font-size: 1.2rem;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        cursor: pointer;
+        transition: background 0.15s;
+        margin: 0 2px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .input-number-btn:active {
+        background: var(--primary);
+    }
+    .input-number-group input[type="number"] {
+        width: 70px;
+        text-align: center;
+        margin: 0 2px;
+    }
+    .add-product-btn {
+        background: var(--primary);
+        color: #fff;
+        border: none;
+        border-radius: var(--radius);
+        padding: 10px 22px;
+        font-size: 1rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 auto 18px auto;
+        transition: background 0.15s;
+    }
+    .add-product-btn:active {
+        background: var(--secondary);
+    }
+    .remove-product-btn {
+        background: var(--error);
+        color: #fff;
+        border: none;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        font-size: 1.2rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 8px;
+        margin-bottom: 8px;
+        float: left;
+    }
+    .discount-options {
+        display: flex;
+        gap: 18px;
+        margin-bottom: 12px;
+        align-items: center;
+    }
+    .discount-options label {
+        color: #444;
+        font-weight: 400;
+        margin-bottom: 0;
+    }
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        font-size: 1.1rem;
+    }
+    .summary-row strong {
+        color: var(--primary);
+    }
+    .continue-btn, .submit-btn {
+        background: var(--secondary);
+        color: #fff;
+        border: none;
+        border-radius: var(--radius);
+        padding: 12px 0;
+        font-size: 1.1rem;
+        width: 100%;
+        cursor: pointer;
+        margin-top: 18px;
+        transition: background 0.15s;
+        font-weight: bold;
+        letter-spacing: 1px;
+    }
+    .continue-btn:active, .submit-btn:active {
+        background: var(--primary);
+    }
+    .back-btn {
+        background: none;
+        border: none;
+        color: var(--primary);
+        font-size: 1.8rem;
+        cursor: pointer;
+        margin-bottom: 18px;
+        margin-right: 0;
+        float: left;
+        transition: color 0.15s;
+    }
+    .back-btn:active {
+        color: var(--secondary);
+    }
+
+    #customerPhone {
+    width: 100%;
+    max-width: 300px;
+    height: 2em;
+    font-size: 1.1em;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    }
+
+    .snackbar {
+        visibility: hidden;
+        min-width: 180px;
+        background-color: var(--success);
+        color: #fff;
+        text-align: center;
+        border-radius: 8px;
+        padding: 12px 18px;
+        position: fixed;
+        z-index: 999;
+        left: 50%;
+        bottom: 32px;
+        transform: translateX(-50%);
+        font-size: 1rem;
+        box-shadow: 0 2px 8px 0 rgba(91,140,90,0.13);
+        opacity: 0;
+        transition: opacity 0.3s, visibility 0.3s;
+    }
+    .snackbar.show {
+        visibility: visible;
+        opacity: 1;
+    }
+    #receivedSection {
+        margin-bottom: 18px;
+    }
+    #receivedFieldsDiv {
+        background: #f8fafd;
+        border-radius: 10px;
+        padding: 10px 12px 8px 12px;
+        margin-top: 8px;
+        box-shadow: 0 1px 4px 0 rgba(18,130,162,0.04);
+    }
+    #receivedFieldsDiv label {
+        color: var(--primary);
+        font-weight: 500;
+        margin-bottom: 2px;
+    }
+    #receivedAmountInput {
+        width: 120px;
+        margin-left: 8px;
+    }
+    #remainingAmountValue {
+        font-weight: bold;
+        color: #1282a2;
+        margin-left: 8px;
+    }
+    /* وصف المنتج */
+    .product-description-checkbox {
+        display: inline-flex;
+        align-items: center;
+        cursor: pointer;
+        margin-bottom: 4px;
+    }
+    .product-description-input {
+        margin-top: 6px;
+        width: 100%;
+        max-width: 350px;
+        background: var(--input-bg);
+        border: 1.5px solid #dbe9ef;
+        border-radius: 10px;
+        padding: 8px 12px;
+        font-size: 1rem;
+        transition: border 0.15s;
+        outline: none;
+        box-sizing: border-box;
+        min-height: 60px;
+        resize: vertical;
+        white-space: pre-wrap;
+        line-height: 1.5;
+    }
+    .product-description-input:focus {
+        border-color: var(--primary);
+    }
+    /* Measurement quick-select buttons (used for واتربروف) */
+    .size-select-btn {
+        padding: 10px 14px;
+        border: 1px solid #d0e7ea;
+        background: #fff;
+        color: var(--primary);
+        border-radius: 12px;
+        cursor: pointer;
+        transition: background 0.12s, color 0.12s, border-color 0.12s, box-shadow 0.12s, transform 0.08s;
+        box-shadow: 0 2px 8px rgba(18,130,162,0.06);
+        font-weight: 700;
+        font-size: 1rem;
+        min-width: 86px;
+        height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .size-select-btn:hover {
+        background: #f0fbfe;
+        border-color: rgba(18,130,162,0.15);
+        transform: translateY(-1px);
+    }
+    .size-select-active {
+        background: var(--primary) !important;
+        color: #fff !important;
+        border-color: var(--primary) !important;
+        box-shadow: 0 4px 18px rgba(18,130,162,0.18);
+    }
+    .sizes-container {
+        margin-top: 8px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 14px; /* space between buttons and the next div */
+    }
+
+    /* Heights label and buttons (smaller variants of size-select-btn) */
+    .heights-label {
+        color: var(--primary);
+        font-weight: 600;
+        margin-top: 8px;
+        margin-bottom: 6px;
+        display: block;
+    }
+    .measure-label {
+        color: var(--primary);
+        font-weight: 600;
+        margin-top: 6px;
+        margin-bottom: 6px;
+        display: block;
+    }
+    .heights-container {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    /* reuse size-select-btn look but scaled down for heights */
+    .heights-container .size-select-btn {
+        padding: 6px 10px;
+        min-width: 48px;
+        height: 36px;
+        font-size: 0.95rem;
+        border-radius: 10px;
+        font-weight: 700;
+    }
+
+    /* Slightly reduce button size on very small screens */
+    @media (max-width: 420px) {
+        .size-select-btn {
+            padding: 8px 10px;
+            font-size: 0.95rem;
+            min-width: 74px;
+            height: 40px;
+        }
+    }
+    /* Custom product name field for 'أخرى' */
+    .field-group input[type="text"] {
+        width: 100%;
+        padding: 6px 8px;
+        font-size: 1em;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        margin-top: 2px;
+        margin-bottom: 8px;
+        box-sizing: border-box;
+    }
+    /* Governorate selector styles */
+    .governorate-btn {
+        transition: background 0.15s, color 0.15s;
+    }
+    .governorate-btn:hover, .governorate-btn:focus {
+        background: #e0f7fa;
+        color: #00796b;
+    }
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100vw;
+        height: 100vh;
+        overflow: auto;
+        background: rgba(0,0,0,0.25);
+    }
+    .modal-content {
+        background: #fff;
+        margin: 7% auto;
+        padding: 24px 18px 18px 18px;
+        border-radius: 10px;
+        width: 95%;
+        max-width: 420px;
+        box-shadow: 0 2px 16px #0002;
+        position: relative;
+    }
+    .close {
+        color: #888;
+        position: absolute;
+        top: 10px;
+        left: 16px;
+        font-size: 2em;
+        font-weight: bold;
+        cursor: pointer;
+        transition: color 0.2s;
+    }
+    .close:hover {
+        color: #c00;
+    }
+    #governorateList {
+        max-height: 340px;
+        overflow-y: auto;
+    }
+    @media (max-width: 600px) {
+        .container {
+            padding: 12px 4px 18px 4px;
+        }
+        .product-types {
+            gap: 6px;
+        }
+        .section {
+            padding: 10px 4px;
+        }
+        .summary-row {
+            font-size: 1rem;
+        }
+    }
+
+/* Find customer section */
+#find-customer-section {
+    background: #fff;
+    border: 1px solid #e6eef0;
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 12px;
+}
+.find-customer-buttons {
+    display:flex;
+    gap:8px;
+    align-items:center;
+}
+.find-customer-buttons button { background:none;border:none;cursor:pointer;padding:4px; }
+.find-customer-buttons img.icon-btn { width:22px;height:22px;display:block }
+#customer-list-box { margin-top:8px; }
+#customer-names { display:flex; gap:8px; align-items:center }
+.customer-name-btn { padding:6px 10px; font-size:0.95rem; border-radius:6px; background:#f1f5f6; border:none; cursor:pointer }
+.customer-name-btn.selected { background:#c7f0d3 }
+.small-id-box { display:inline-flex; align-items:center; gap:8px; padding:6px 8px; background:#e9fbff; border:1px solid #bfeef9; border-radius:6px; margin-top:8px }
+.small-id-box .remove-customer { background:none;border:none;cursor:pointer;color:#c33;font-size:1.1rem }
+
+/* Gender selector buttons */
+.gender-buttons { display:flex; gap:8px; margin-top:6px; }
+.gender-btn { padding:8px 12px; border-radius:6px; border:1px solid #ddd; background:#fff; cursor:pointer; font-weight:600 }
+.gender-btn.selected { background: #0b74de; color:#fff; border-color:#0b74de }
+.gender-btn:focus { outline:2px solid #8fbbe9 }
