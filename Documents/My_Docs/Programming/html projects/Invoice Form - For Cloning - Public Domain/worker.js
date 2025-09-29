@@ -18,7 +18,7 @@ const counters = {};
 // persistent across worker restarts — replace with KV/DO in production.
 const savedOrders = [];
 
-// Map of confirmation keys -> order entries (in-memory). For production use KV/DO.
+// In-memory fallback store (used only when KV is not bound)
 const confirmationStore = {};
 
 const sampleIG = [
@@ -71,13 +71,45 @@ export default {
       return new Response(null, { status: 204, headers: CORS_HEADERS });
     }
 
+    // Helper: KV-backed counter and confirmation storage operations
+    const kv = env && env.CONFIRM_KV ? env.CONFIRM_KV : null;
+
+    async function kvGet(key) {
+      if (kv) {
+        const v = await kv.get(key);
+        return v ? JSON.parse(v) : null;
+      }
+      return confirmationStore[key] || null;
+    }
+
+    async function kvPut(key, value) {
+      if (kv) {
+        await kv.put(key, JSON.stringify(value));
+        return;
+      }
+      confirmationStore[key] = value;
+    }
+
+    async function kvIncrementCounter(dateStr) {
+      if (kv) {
+        // Use a simple read-modify-write for KV (not atomic). For strongly consistent counters
+        // consider Durable Objects. This is acceptable for low concurrency.
+        const raw = await kv.get(`counter:${dateStr}`);
+        let cur = raw ? parseInt(raw, 10) : 0;
+        cur = cur + 1;
+        await kv.put(`counter:${dateStr}`, String(cur));
+        return cur;
+      }
+      counters[dateStr] = (counters[dateStr] || 0) + 1;
+      return counters[dateStr];
+    }
+
     // POST /get_order_id -> returns a simple daily incremental order id
     if (request.method === 'POST' && url.pathname === '/get_order_id') {
       try {
         const body = await request.json().catch(() => ({}));
         const dateStr = body.date || (new Date()).toISOString().slice(0,10).replace(/-/g,'');
-        const cur = (counters[dateStr] || 0) + 1;
-        counters[dateStr] = cur;
+        const cur = await kvIncrementCounter(dateStr);
         const orderID = `${dateStr}${String(cur).padStart(2,'0')}`;
         return new Response(JSON.stringify({ success: true, orderID }), { headers: CORS_HEADERS });
       } catch (e) {
@@ -285,8 +317,8 @@ export default {
         const dd = String(now.getDate()).padStart(2,'0');
         const dateInt = `${yyyy}${mm}${dd}`;
         const key = (rnd()+rnd()).slice(0,6) + dateInt; // ensure 6 chars + date
-        // store payload along with metadata
-        confirmationStore[key] = { payload: body, created: Date.now(), confirmed: false, ip: null, ua: null };
+  // store payload along with metadata (KV when available)
+  await kvPut(`confirm:${key}`, { payload: body, created: Date.now(), confirmed: false, ip: null, ua: null });
         // Build confirmation URL using requested host for orders.whitebedding.net
         const confirmHost = 'orders.whitebedding.net';
         const confirmPath = `/${key}`;
@@ -304,8 +336,8 @@ export default {
       // If request host is orders.whitebedding.net, try to serve confirmation page
       if (request.headers.get('host') && request.headers.get('host').includes('orders.whitebedding.net')) {
         const key = url.pathname.slice(1);
-        const entry = confirmationStore[key];
-        if (!entry) return new Response('Not Found', { status: 404 });
+  const entry = await kvGet(`confirm:${key}`);
+  if (!entry) return new Response('Not Found', { status: 404 });
         // Simple HTML page with a confirm button that POSTs to /confirm
         const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تأكيد الطلب</title></head><body dir="rtl" style="font-family: Arial, Helvetica, sans-serif; padding:18px;"><h2>تأكيد وموافقة على الطلب</h2><p>اضغط "أوافق" لتأكيد وموافقة الزبون على الطلب.</p><button id="btn">أوافق</button><script>document.getElementById('btn').addEventListener('click', async function(){ this.disabled=true; this.textContent='جاري الإرسال...'; try{ const r=await fetch(location.pathname + '/confirm', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ts: Date.now() }) }); const j=await r.json().catch(()=>null); if (r.ok) { document.body.innerHTML = '<h3>تم التأكيد. شكراً.</h3>'; } else { document.body.innerHTML = '<h3>حدث خطأ. حاول لاحقاً.</h3>'; } }catch(e){ document.body.innerHTML = '<h3>خطأ في الاتصال.</h3>'; } });</script></body></html>`;
         return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Access-Control-Allow-Origin': '*' } });
@@ -317,18 +349,20 @@ export default {
       // Extract key from path
       const parts = url.pathname.split('/').filter(Boolean);
       const key = parts[0];
-      const entry = confirmationStore[key];
-      if (!entry) return new Response(JSON.stringify({ success: false, message: 'not found' }), { headers: CORS_HEADERS, status: 404 });
+  const entry = await kvGet(`confirm:${key}`);
+  if (!entry) return new Response(JSON.stringify({ success: false, message: 'not found' }), { headers: CORS_HEADERS, status: 404 });
       // record requester IP and UA
       const ua = request.headers.get('user-agent') || '';
       // Cloudflare provides CF-Connecting-IP header; fallback to x-forwarded-for or remote
       const ip = request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for') || null;
-      entry.confirmed = true;
-      entry.ip = ip;
-      entry.ua = ua;
-      entry.confirmed_at = Date.now();
-      // attach meta to payload
-      const payload = Object.assign({}, entry.payload);
+  entry.confirmed = true;
+  entry.ip = ip;
+  entry.ua = ua;
+  entry.confirmed_at = Date.now();
+  // persist update
+  await kvPut(`confirm:${key}`, entry);
+  // attach meta to payload
+  const payload = Object.assign({}, entry.payload);
       payload.__confirmation = { key, ip, ua, confirmed_at: entry.confirmed_at };
       // forward to internal sales_receipt handler by calling the same code path (POST to /sales_receipt)
       try {
@@ -362,11 +396,11 @@ export default {
           ts: Date.now(),
           payload
         };
-        savedOrders.push(entry);
-        // increment today counter
-        const day = (new Date()).toISOString().slice(0,10).replace(/-/g,'');
-        counters[day] = (counters[day] || 0) + 1;
-        return new Response(JSON.stringify({ success: true, saved: true, index: savedOrders.length-1, counters }), { headers: CORS_HEADERS });
+  savedOrders.push(entry);
+  // increment today counter (KV-aware)
+  const day = (new Date()).toISOString().slice(0,10).replace(/-/g,'');
+  const cur = await kvIncrementCounter(day);
+  return new Response(JSON.stringify({ success: true, saved: true, index: savedOrders.length-1, counters: { [day]: cur } }), { headers: CORS_HEADERS });
       } catch (e) {
         return new Response(JSON.stringify({ success: false, error: String(e) }), { headers: CORS_HEADERS, status: 500 });
       }
