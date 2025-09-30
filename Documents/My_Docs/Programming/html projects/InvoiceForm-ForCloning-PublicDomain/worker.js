@@ -271,11 +271,16 @@ export default {
       if (DATASET_ID && FB_ACCESS_TOKEN) {
         try {
           // Build request body for dataset events endpoint
+          // Ensure `data` is an array as required by CAPI. If the incoming
+          // payload is a single object, wrap it; if it's already an array,
+          // forward as-is.
+          const eventsArray = Array.isArray(payload) ? payload : [payload];
+          if (!Array.isArray(payload)) console.log('Normalized payload into array for CAPI, length=', eventsArray.length);
           const eventBody = {
             upload_tag: 'sales_receipt',
             upload_source: 'server',
             upload_time: Math.floor(Date.now() / 1000),
-            data: [ payload ]
+            data: eventsArray
           };
 
           const fbUrl = `https://graph.facebook.com/v22.0/${DATASET_ID}/events?access_token=${encodeURIComponent(FB_ACCESS_TOKEN)}`;
