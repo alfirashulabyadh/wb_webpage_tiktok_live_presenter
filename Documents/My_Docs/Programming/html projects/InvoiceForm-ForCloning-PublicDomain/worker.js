@@ -338,8 +338,13 @@ export default {
         const key = url.pathname.slice(1);
   const entry = await kvGet(`confirm:${key}`);
   if (!entry) return new Response('Not Found', { status: 404 });
-        // Simple HTML page with a confirm button that POSTs to /confirm
-        const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تأكيد الطلب</title></head><body dir="rtl" style="font-family: Arial, Helvetica, sans-serif; padding:18px;"><h2>تأكيد وموافقة على الطلب</h2><p>اضغط "أوافق" لتأكيد وموافقة الزبون على الطلب.</p><button id="btn">أوافق</button><script>document.getElementById('btn').addEventListener('click', async function(){ this.disabled=true; this.textContent='جاري الإرسال...'; try{ const r=await fetch(location.pathname + '/confirm', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ts: Date.now() }) }); const j=await r.json().catch(()=>null); if (r.ok) { document.body.innerHTML = '<h3>تم التأكيد. شكراً.</h3>'; } else { document.body.innerHTML = '<h3>حدث خطأ. حاول لاحقاً.</h3>'; } }catch(e){ document.body.innerHTML = '<h3>خطأ في الاتصال.</h3>'; } });</script></body></html>`;
+        // Render a confirmation page containing the order summary so the
+        // customer can review it. Include the current 'confirmed' state so
+        // the UI can reflect that the link was already used.
+        const payload = entry.payload || {};
+        const pretty = JSON.stringify(payload, null, 2).replace(/</g, '&lt;');
+        const already = entry.confirmed ? 'true' : 'false';
+        const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تأكيد الطلب</title><style>body{font-family:Arial,Helvetica,sans-serif;padding:18px}pre{background:#f6f6f6;padding:12px;border-radius:6px;white-space:pre-wrap}button{padding:10px 14px;border-radius:6px;border:0;background:#007bff;color:#fff;cursor:pointer}button[disabled]{opacity:0.6;cursor:default}</style></head><body dir="rtl"><h2>مراجعة وتأكيد الطلب</h2><p>يرجى مراجعة ملخص الطلب أدناه. اضغط "أوافق" لتأكيد الطلب وإرساله.</p><h3>ملخص الطلب</h3><pre id="orderPreview">${pretty}</pre><div style="margin-top:12px"><button id="btn">أوافق</button><span id="status" style="margin-inline-start:12px;color:#666"></span></div><script>const btn=document.getElementById('btn');const status=document.getElementById('status');const already=${already};if(already){btn.disabled=true;btn.textContent='تم التأكيد';status.textContent='تم تأكيد هذا الطلب سابقاً.';}btn.addEventListener('click', async function(){ if(btn.disabled) return; btn.disabled=true; btn.textContent='جاري الإرسال...'; status.textContent=''; try{ const r=await fetch(location.pathname + '/confirm', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ts: Date.now() }) }); const j=await r.json().catch(()=>null); if(r.ok && j && j.success){ console.log('Confirmation forwarded, server response:', j); document.body.innerHTML = '<h3>تم التأكيد. شكراً.</h3>'; } else if (j && j.message === 'already_confirmed'){ console.log('Already confirmed on server:', j); document.body.innerHTML = '<h3>تم التأكيد سابقاً. شكراً.</h3>'; } else { console.error('Confirmation failed', r.status, j); document.body.innerHTML = '<h3>حدث خطأ. حاول لاحقاً.</h3>'; } } catch(e){ console.error('Confirm request error', e); document.body.innerHTML = '<h3>خطأ في الاتصال.</h3>'; } });</script></body></html>`;
         return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Access-Control-Allow-Origin': '*' } });
       }
     }
@@ -351,6 +356,11 @@ export default {
       const key = parts[0];
   const entry = await kvGet(`confirm:${key}`);
   if (!entry) return new Response(JSON.stringify({ success: false, message: 'not found' }), { headers: CORS_HEADERS, status: 404 });
+      // If already confirmed, return an idempotent response and do not forward again
+      if (entry.confirmed) {
+        console.log('Confirm called but already confirmed for key', key);
+        return new Response(JSON.stringify({ success: false, message: 'already_confirmed' }), { headers: CORS_HEADERS });
+      }
       // record requester IP and UA
       const ua = request.headers.get('user-agent') || '';
       // Cloudflare provides CF-Connecting-IP header; fallback to x-forwarded-for or remote
@@ -364,6 +374,8 @@ export default {
   // attach meta to payload
   const payload = Object.assign({}, entry.payload);
       payload.__confirmation = { key, ip, ua, confirmed_at: entry.confirmed_at };
+      // Log the confirmation payload details for operator debugging before forwarding
+      console.log('Forwarding confirmation payload to sales_receipt:', payload);
       // forward to internal sales_receipt handler by calling the same code path (POST to /sales_receipt)
       try {
         // call internal handler by constructing a Request to /sales_receipt
@@ -379,6 +391,7 @@ export default {
         try { forwardedJson = forwardText ? JSON.parse(forwardText) : null; } catch(e) { forwardedJson = { raw: forwardText }; }
         return new Response(JSON.stringify({ success: true, forwarded: forwardRes.ok, fbResponse: forwardedJson }), { headers: CORS_HEADERS });
       } catch (e) {
+        console.error('Error forwarding confirmation to sales_receipt:', e);
         return new Response(JSON.stringify({ success: false, error: String(e) }), { headers: CORS_HEADERS, status: 500 });
       }
     }
