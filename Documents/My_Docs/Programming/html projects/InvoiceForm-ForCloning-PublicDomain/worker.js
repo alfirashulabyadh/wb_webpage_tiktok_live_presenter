@@ -297,7 +297,7 @@ export default {
               fbRes = await fetch(fbUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(eventBody)
+                body: JSON.stringify(eventsArray)
               });
               fbText = await fbRes.text().catch(()=>null);
               try { fbJson = fbText ? JSON.parse(fbText) : null; } catch(e) { fbJson = { raw: fbText }; }
@@ -423,7 +423,7 @@ export default {
   // string in the forwarded event payload.
   const payload = Object.assign({}, entry.payload);
       // payload.__confirmation = { key, ip, ua, confirmed_at: entry.confirmed_at }; 
-      payload.event_time = entry.confirmed_at;
+      // payload.event_time = entry.confirmed_at;
       payload.user_data.client_ip_address = ip;
       payload.user_data.client_user_agent = ua;
       payload.event_name = "tp_web3";
