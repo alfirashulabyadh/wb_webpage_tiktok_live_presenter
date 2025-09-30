@@ -2261,7 +2261,15 @@ window.onclick = function(event) {
                     confirmBtn.onclick = function() {
                         confirmBtn.disabled = true;
                         confirmBtn.textContent = 'جاري الإرسال...';
-                        resolve({ overlay, confirmBtn });
+                        // Open a blank popup synchronously so the browser does not
+                        // block the tab later when we navigate to the confirmation URL.
+                        let popup = null;
+                        try {
+                            popup = window.open('about:blank', '_blank');
+                        } catch (e) {
+                            popup = null;
+                        }
+                        resolve({ overlay, confirmBtn, popup });
                     };
                 });
             }
@@ -2311,15 +2319,37 @@ window.onclick = function(event) {
                     const createJ = await createResp.json().catch(()=>null);
                     if (createResp.ok && createJ && createJ.confirmURL) {
                         createdConfirmURL = createJ.confirmURL;
-                        // Open confirmation page in a new tab so it runs independently
-                        try { window.open(createdConfirmURL, '_blank'); } catch(e) { /* ignore */ }
-                        // Copy confirmation link to clipboard for quick sending
-                        if (navigator.clipboard && window.isSecureContext) {
-                            try { await navigator.clipboard.writeText(createdConfirmURL); showSnackbar('تم إنشاء رابط التأكيد ونسخه'); }
-                            catch(e){ /* ignore clipboard errors */ showSnackbar('تم إنشاء رابط التأكيد'); }
+                        // Log the URL for operator debugging
+                        console.log('Confirmation URL:', createdConfirmURL);
+                        // If we opened a popup from the click handler, navigate it now
+                        if (modalResult && modalResult.popup) {
+                            try {
+                                modalResult.popup.location = createdConfirmURL;
+                                modalResult.popup.focus();
+                            } catch (e) {
+                                // Failed to set popup location (rare) - fallback to open
+                                try { window.open(createdConfirmURL, '_blank'); } catch (e2) { /* ignore */ }
+                            }
                         } else {
-                            // fallback copy
-                            try { fallbackCopyTextToClipboard(createdConfirmURL); showSnackbar('تم إنشاء رابط التأكيد'); } catch(e) {}
+                            // No popup reference (browser blocked or unavailable) - try opening normally
+                            try { window.open(createdConfirmURL, '_blank'); } catch(e) { /* ignore */ }
+                        }
+
+                        // Attempt to copy confirmation link to clipboard and notify operator
+                        let copied = false;
+                        if (navigator.clipboard && window.isSecureContext) {
+                            try {
+                                await navigator.clipboard.writeText(createdConfirmURL);
+                                copied = true;
+                                showSnackbar('تم إنشاء رابط التأكيد ونسخه');
+                            } catch (e) {
+                                // clipboard write failed
+                                console.warn('clipboard write failed', e);
+                            }
+                        }
+                        if (!copied) {
+                            // Fallback copy (may also be blocked, but try)
+                            try { fallbackCopyTextToClipboard(createdConfirmURL); showSnackbar('تم إنشاء رابط التأكيد'); } catch(e) { /* ignore */ }
                         }
                     } else {
                         console.warn('create_order did not return confirmURL, falling back', createJ);
