@@ -279,18 +279,45 @@ export default {
           };
 
           const fbUrl = `https://graph.facebook.com/v22.0/${DATASET_ID}/events?access_token=${encodeURIComponent(FB_ACCESS_TOKEN)}`;
-          const fbRes = await fetch(fbUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(eventBody)
-          });
-          const fbText = await fbRes.text().catch(()=>null);
+          // Retry loop for transient failures (e.g., 522). We'll attempt a few
+          // times and log each attempt. Keep retries short to avoid long waits.
+          const maxAttempts = 3;
+          let attempt = 0;
+          let fbRes = null;
+          let fbText = null;
           let fbJson = null;
-          try { fbJson = fbText ? JSON.parse(fbText) : null; } catch(e) { fbJson = { raw: fbText }; }
-          console.log('FB CAPI response:', fbRes.status, fbJson);
+          for (attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+              console.log(`FB CAPI attempt ${attempt} -> POST ${fbUrl}`);
+              fbRes = await fetch(fbUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(eventBody)
+              });
+              fbText = await fbRes.text().catch(()=>null);
+              try { fbJson = fbText ? JSON.parse(fbText) : null; } catch(e) { fbJson = { raw: fbText }; }
+              console.log('FB CAPI response (attempt):', fbRes.status, fbJson);
+              // If successful (2xx) break and proceed
+              if (fbRes.ok) break;
+              // If client error (4xx) don't retry
+              if (fbRes.status >= 400 && fbRes.status < 500) break;
+            } catch (e) {
+              console.error(`FB CAPI attempt ${attempt} error:`, e && e.stack ? e.stack : String(e));
+            }
+            // If not last attempt, wait a short interval before retrying
+            if (attempt < maxAttempts) {
+              try { await new Promise(res => setTimeout(res, 500)); } catch(e) { /* ignore timing errors */ }
+            }
+          }
 
-          if (!fbRes.ok) {
-            return new Response(JSON.stringify({ success: false, forwarded: true, fbStatus: fbRes.status, fbBody: fbJson }), { headers: CORS_HEADERS, status: 502 });
+          // Final parse/normalize
+          if (!fbJson) {
+            try { fbJson = fbText ? JSON.parse(fbText) : null; } catch(e) { fbJson = { raw: fbText }; }
+          }
+          console.log('FB CAPI final result:', attempt, fbRes && fbRes.status, fbJson);
+
+          if (!fbRes || !fbRes.ok) {
+            return new Response(JSON.stringify({ success: false, forwarded: true, fbStatus: fbRes ? fbRes.status : null, fbBody: fbJson }), { headers: CORS_HEADERS, status: 502 });
           }
           console.log("eventBody:", eventBody);
           return new Response(JSON.stringify({ success: true, forwarded: true, fbBody: fbJson }), { headers: CORS_HEADERS });
@@ -317,8 +344,15 @@ export default {
         const dd = String(now.getDate()).padStart(2,'0');
         const dateInt = `${yyyy}${mm}${dd}`;
         const key = (rnd()+rnd()).slice(0,6) + dateInt; // ensure 6 chars + date
-  // store payload along with metadata (KV when available)
-  await kvPut(`confirm:${key}`, { payload: body, created: Date.now(), confirmed: false, ip: null, ua: null });
+        // Separate preview/summary from the event payload so we don't
+        // expose the internal JSON to the customer. The client sends an
+        // object like { json: <eventJson>, preview: <humanString>, ts }
+        const storedPayload = (body && body.json) ? body.json : (body.payload || body);
+        const summary = (body && body.preview) ? body.preview : null;
+  // store payload along with metadata (KV when available). Store summary
+  // separately so the confirmation page can show a friendly string and
+  // the actual payload remains the event data to be forwarded to CAPI.
+  await kvPut(`confirm:${key}`, { payload: storedPayload, summary: summary, created: Date.now(), confirmed: false, ip: null, ua: null });
         // Build confirmation URL using requested host for orders.whitebedding.net
         const confirmHost = 'orders.whitebedding.net';
         const confirmPath = `/${key}`;
@@ -342,7 +376,16 @@ export default {
         // customer can review it. Include the current 'confirmed' state so
         // the UI can reflect that the link was already used.
         const payload = entry.payload || {};
-        const pretty = JSON.stringify(payload, null, 2).replace(/</g, '&lt;');
+        // Prefer explicit stored summary; if missing, derive a minimal human
+        // readable summary from a few common fields.
+        let summary = entry.summary || '';
+        if (!summary) {
+          const name = payload.customer && payload.customer.name ? payload.customer.name : (payload.customerName || '');
+          const phone = payload.customer && payload.customer.phone ? payload.customer.phone : (payload.customerPhone || '');
+          const total = payload.total || payload.amount || '';
+          summary = `الاسم: ${name}\nالرقم: ${phone}\nالمجموع: ${total}`;
+        }
+        const pretty = String(summary).replace(/</g, '&lt;');
         const already = entry.confirmed ? 'true' : 'false';
         const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تأكيد الطلب</title><style>body{font-family:Arial,Helvetica,sans-serif;padding:18px}pre{background:#f6f6f6;padding:12px;border-radius:6px;white-space:pre-wrap}button{padding:10px 14px;border-radius:6px;border:0;background:#007bff;color:#fff;cursor:pointer}button[disabled]{opacity:0.6;cursor:default}</style></head><body dir="rtl"><h2>مراجعة وتأكيد الطلب</h2><p>يرجى مراجعة ملخص الطلب أدناه. اضغط "أوافق" لتأكيد الطلب وإرساله.</p><h3>ملخص الطلب</h3><pre id="orderPreview">${pretty}</pre><div style="margin-top:12px"><button id="btn">أوافق</button><span id="status" style="margin-inline-start:12px;color:#666"></span></div><script>const btn=document.getElementById('btn');const status=document.getElementById('status');const already=${already};if(already){btn.disabled=true;btn.textContent='تم التأكيد';status.textContent='تم تأكيد هذا الطلب سابقاً.';}btn.addEventListener('click', async function(){ if(btn.disabled) return; btn.disabled=true; btn.textContent='جاري الإرسال...'; status.textContent=''; try{ const r=await fetch(location.pathname + '/confirm', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ts: Date.now() }) }); const j=await r.json().catch(()=>null); if(r.ok && j && j.success){ console.log('Confirmation forwarded, server response:', j); document.body.innerHTML = '<h3>تم التأكيد. شكراً.</h3>'; } else if (j && j.message === 'already_confirmed'){ console.log('Already confirmed on server:', j); document.body.innerHTML = '<h3>تم التأكيد سابقاً. شكراً.</h3>'; } else { console.error('Confirmation failed', r.status, j); document.body.innerHTML = '<h3>حدث خطأ. حاول لاحقاً.</h3>'; } } catch(e){ console.error('Confirm request error', e); document.body.innerHTML = '<h3>خطأ في الاتصال.</h3>'; } });</script></body></html>`;
         return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Access-Control-Allow-Origin': '*' } });
@@ -371,11 +414,17 @@ export default {
   entry.confirmed_at = Date.now();
   // persist update
   await kvPut(`confirm:${key}`, entry);
-  // attach meta to payload
+  // attach meta to payload; ensure we DO NOT include the summary/preview
+  // string in the forwarded event payload.
   const payload = Object.assign({}, entry.payload);
-      payload.__confirmation = { key, ip, ua, confirmed_at: entry.confirmed_at };
+      // payload.__confirmation = { key, ip, ua, confirmed_at: entry.confirmed_at }; 
+      payload.event_time = entry.confirmed_at;
+      payload.user_data.client_ip_address = ip;
+      payload.user_data.client_user_agent = ua;
+      payload.event_name = "tp_web3";
       // Log the confirmation payload details for operator debugging before forwarding
       console.log('Forwarding confirmation payload to sales_receipt:', payload);
+      console.log("contents: ", payload.custom_data.contents)
       // forward to internal sales_receipt handler by calling the same code path (POST to /sales_receipt)
       try {
         // call internal handler by constructing a Request to /sales_receipt
@@ -389,6 +438,15 @@ export default {
         const forwardText = await forwardRes.text().catch(()=>null);
         let forwardedJson = null;
         try { forwardedJson = forwardText ? JSON.parse(forwardText) : null; } catch(e) { forwardedJson = { raw: forwardText }; }
+        // Log the internal /sales_receipt response and the underlying CAPI body when present
+        try {
+          console.log('Internal /sales_receipt response status:', forwardRes.status);
+          if (forwardedJson && forwardedJson.fbBody) {
+            console.log('CAPI response body:', forwardedJson.fbBody);
+          } else {
+            console.log('sales_receipt response body:', forwardedJson);
+          }
+        } catch (e) { console.warn('Failed to log forwarded response', e); }
         return new Response(JSON.stringify({ success: true, forwarded: forwardRes.ok, fbResponse: forwardedJson }), { headers: CORS_HEADERS });
       } catch (e) {
         console.error('Error forwarding confirmation to sales_receipt:', e);

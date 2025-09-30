@@ -14,3 +14,10 @@ workers_dev = true
 # Replace the id with the value you provided. This binding name will be
 # available in `env.CONFIRM_KV` in the worker runtime.
 kv_namespaces = [ { binding = "CONFIRM_KV", id = "275f1c8010674cb3a2325d4e4aaebc7e" } ]
+
+# wrangler.toml (wrangler v3.88.0^)
+[observability.logs]
+enabled = true
+
+
+
