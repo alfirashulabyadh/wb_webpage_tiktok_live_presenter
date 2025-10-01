@@ -525,3 +525,29 @@
 .gender-btn { padding:8px 12px; border-radius:6px; border:1px solid #ddd; background:#fff; cursor:pointer; font-weight:600 }
 .gender-btn.selected { background: #0b74de; color:#fff; border-color:#0b74de }
 .gender-btn:focus { outline:2px solid #8fbbe9 }
+
+/* Event type capsule buttons (inline with label) */
+.event-capsule { display:flex; gap:8px; align-items:center; }
+.event-capsule-btn {
+    padding:8px 14px;
+    border-radius:999px;
+    border:1px solid rgba(0,0,0,0.12);
+    background: transparent;
+    color: var(--primary);
+    cursor: pointer;
+    font-weight: 600;
+    min-width: 86px;
+}
+.event-capsule-btn.selected {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+}
+
+/* utility: hide input fields when JS marks them non-editable */
+.hidden-input { display:none !important; }
+
+/* duvet fixed-dim display: show values inline to the right of the labels */
+.duvet-dim { display:flex; gap:12px; align-items:center; }
+.duvet-dim .dim-label { min-width:60px; color:var(--primary); font-weight:600 }
+.duvet-dim .dim-value { font-weight:700; color:#222 }

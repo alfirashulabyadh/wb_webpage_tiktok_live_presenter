@@ -203,9 +203,16 @@
                 </div>
                 <!-- Event type selector (placed above the submit button) -->
                 <div class="field-group" style="margin-bottom:8px;">
-                    <label style="display:block;margin-bottom:6px;">نوع الوصل</label>
-                    <label style="margin-right:12px;cursor:pointer;"><input type="radio" name="eventMode" value="Purchase" checked style="margin-left:6px;"> حقيقي</label>
-                    <label style="cursor:pointer;"><input type="radio" name="eventMode" value="PT-web3" style="margin-left:6px;"> تجريبي</label>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <label style="margin:0;">نوع الوصل</label>
+                        <!-- keep radios for form logic but hide them; default is تجريبي -->
+                        <input type="radio" name="eventMode" value="Purchase" id="eventModePurchase" style="display:none;">
+                        <input type="radio" name="eventMode" value="PT-web3" id="eventModePT" style="display:none;" checked>
+                        <div class="event-capsule" role="tablist" aria-label="نوع الوصل">
+                            <button type="button" class="event-capsule-btn" data-value="Purchase">حقيقي</button>
+                            <button type="button" class="event-capsule-btn selected" data-value="PT-web3">تجريبي</button>
+                        </div>
+                    </div>
                 </div>
                 <button type="button" class="submit-btn" id="submitBtn">تسليم الوصل</button>
             </div>

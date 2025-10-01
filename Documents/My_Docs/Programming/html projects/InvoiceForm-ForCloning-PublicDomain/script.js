@@ -393,6 +393,34 @@
             }
             productsArea.appendChild(prodDiv);
         });
+        // wire the event capsule buttons after re-render
+        try { setupEventCapsule(); } catch(e) {}
+    }
+    // Wire event capsule buttons (also called on initial load)
+    function setupEventCapsule() {
+        const caps = document.querySelectorAll('.event-capsule-btn');
+        // Sync initial state from checked radio
+        const checked = document.querySelector('input[name="eventMode"]:checked');
+        if (checked) {
+            caps.forEach(x => x.classList.remove('selected'));
+            const found = Array.from(caps).find(c => c.dataset.value === checked.value);
+            if (found) found.classList.add('selected');
+        }
+        caps.forEach(b => {
+            // remove existing to avoid duplicate bindings
+            b.replaceWith(b.cloneNode(true));
+        });
+        // re-query after cloning
+        const caps2 = document.querySelectorAll('.event-capsule-btn');
+        caps2.forEach(b => {
+            b.addEventListener('click', function() {
+                caps2.forEach(x => x.classList.remove('selected'));
+                this.classList.add('selected');
+                const v = this.dataset.value;
+                const r = document.querySelector('input[name="eventMode"][value="' + v + '"]');
+                if (r) r.checked = true;
+            });
+        });
     }
     function renderProductFields(prod, idx) {
         const wrap = document.createElement('div');
@@ -1006,56 +1034,31 @@
                 // we simply append sizesDiv now so it appears under the description area
                 wrap.appendChild(sizesDiv);
             })();
-            // الطول والعرض
+            // For واتربروف: width and length should not be editable fields per request.
+            // We still display the values (from quick-select or defaults) but hide the inputs.
             const sizeRow = document.createElement('div');
             sizeRow.className = 'input-row';
-            // الطول
+            // الطول (display-only)
             const lengthGroup = document.createElement('div');
             lengthGroup.className = 'field-group';
             const lengthLabel = document.createElement('label');
             lengthLabel.textContent = "الطول";
             lengthGroup.appendChild(lengthLabel);
-            const lengthInput = document.createElement('input');
-            lengthInput.type = 'number';
-            lengthInput.min = 1;
-            lengthInput.value = prod.details.length || 200;
-            lengthInput.oninput = function() {
-                prod.details.length = parseNumber(this.value);
-                try {
-                    if (prod.details && prod.details.wpId) prod.details.id = prod.details.wpId;
-                    else {
-                        const base = prodIDsList["واتربروف"] || (prod.details && prod.details.id) || prod.id || 'waterproof';
-                        const wv = prod.details && prod.details.width ? parseNumber(prod.details.width) : null;
-                        const lv = prod.details && prod.details.length ? parseNumber(prod.details.length) : null;
-                        prod.details.id = `${base}${wv?`_${wv}`:''}${lv?`_${lv}`:''}`;
-                    }
-                } catch(e) { prod.details.id = (prod.details && prod.details.id != null) ? prod.details.id : (prod.id != null ? prod.id : prod.details && prod.details.type); }
-            };
-            lengthGroup.appendChild(lengthInput);
+            const lengthValue = document.createElement('div');
+            lengthValue.className = 'dim-value';
+            lengthValue.textContent = (prod.details.length || 200) + ' سم';
+            lengthGroup.appendChild(lengthValue);
             sizeRow.appendChild(lengthGroup);
-            // العرض
+            // العرض (display-only)
             const widthGroup = document.createElement('div');
             widthGroup.className = 'field-group';
             const widthLabel = document.createElement('label');
             widthLabel.textContent = "العرض";
             widthGroup.appendChild(widthLabel);
-            const widthInput = document.createElement('input');
-            widthInput.type = 'number';
-            widthInput.min = 1;
-            widthInput.value = prod.details.width || 180;
-            widthInput.oninput = function() {
-                prod.details.width = parseNumber(this.value);
-                try {
-                    if (prod.details && prod.details.wpId) prod.details.id = prod.details.wpId;
-                    else {
-                        const base = prodIDsList["واتربروف"] || (prod.details && prod.details.id) || prod.id || 'waterproof';
-                        const wv = prod.details && prod.details.width ? parseNumber(prod.details.width) : null;
-                        const lv = prod.details && prod.details.length ? parseNumber(prod.details.length) : null;
-                        prod.details.id = `${base}${wv?`_${wv}`:''}${lv?`_${lv}`:''}`;
-                    }
-                } catch(e) { prod.details.id = (prod.details && prod.details.id != null) ? prod.details.id : (prod.id != null ? prod.id : prod.details && prod.details.type); }
-            };
-            widthGroup.appendChild(widthInput);
+            const widthValue = document.createElement('div');
+            widthValue.className = 'dim-value';
+            widthValue.textContent = (prod.details.width || 180) + ' سم';
+            widthGroup.appendChild(widthValue);
             sizeRow.appendChild(widthGroup);
             wrap.appendChild(sizeRow);
             // السعر
@@ -1153,54 +1156,32 @@
             wrap.appendChild(duvetGroup);
             // --- وصف ---
             wrap.appendChild(renderDescriptionSection());
-            // الطول والعرض
+            // الطول والعرض displayed as non-editable texts next to the labels
             const sizeRow = document.createElement('div');
             sizeRow.className = 'input-row';
-            // الطول
+            // الطول (label + value inline)
             const lengthGroup = document.createElement('div');
-            lengthGroup.className = 'field-group';
-            const lengthLabel = document.createElement('label');
+            lengthGroup.className = 'field-group duvet-dim';
+            const lengthLabel = document.createElement('div');
+            lengthLabel.className = 'dim-label';
             lengthLabel.textContent = "الطول";
             lengthGroup.appendChild(lengthLabel);
-            const lengthInput = document.createElement('input');
-            lengthInput.type = 'number';
-            lengthInput.min = 1;
-            lengthInput.value = prod.details.length || '';
-            lengthInput.oninput = function() {
-                prod.details.length = parseNumber(this.value);
-                try {
-                    const dName = prod.details && prod.details.duvetType;
-                    const d = duvetTypes.find(x => x.name === dName);
-                    const base = (d && d.id) ? d.id : (prodIDsList["لحاف"] || (prod.details && prod.details.id) || prod.id);
-                    const wv = prod.details && prod.details.width ? parseNumber(prod.details.width) : null;
-                    const lv = prod.details && prod.details.length ? parseNumber(prod.details.length) : null;
-                    prod.details.id = `${base}${wv?`_${wv}`:''}${lv?`_${lv}`:''}`;
-                } catch(e) { prod.details.id = (prod.details && prod.details.id != null) ? prod.details.id : (prod.id != null ? prod.id : prod.details && prod.details.type); }
-            };
-            lengthGroup.appendChild(lengthInput);
+            const lengthValue = document.createElement('div');
+            lengthValue.className = 'dim-value';
+            lengthValue.textContent = (prod.details.length || '') + (prod.details.length ? ' سم' : '');
+            lengthGroup.appendChild(lengthValue);
             sizeRow.appendChild(lengthGroup);
             // العرض
             const widthGroup = document.createElement('div');
-            widthGroup.className = 'field-group';
-            const widthLabel = document.createElement('label');
+            widthGroup.className = 'field-group duvet-dim';
+            const widthLabel = document.createElement('div');
+            widthLabel.className = 'dim-label';
             widthLabel.textContent = "العرض";
             widthGroup.appendChild(widthLabel);
-            const widthInput = document.createElement('input');
-            widthInput.type = 'number';
-            widthInput.min = 1;
-            widthInput.value = prod.details.width || '';
-            widthInput.oninput = function() {
-                prod.details.width = parseNumber(this.value);
-                try {
-                    const dName = prod.details && prod.details.duvetType;
-                    const d = duvetTypes.find(x => x.name === dName);
-                    const base = (d && d.id) ? d.id : (prodIDsList["لحاف"] || (prod.details && prod.details.id) || prod.id);
-                    const wv = prod.details && prod.details.width ? parseNumber(prod.details.width) : null;
-                    const lv = prod.details && prod.details.length ? parseNumber(prod.details.length) : null;
-                    prod.details.id = `${base}${wv?`_${wv}`:''}${lv?`_${lv}`:''}`;
-                } catch(e) { prod.details.id = (prod.details && prod.details.id != null) ? prod.details.id : (prod.id != null ? prod.id : prod.details && prod.details.type); }
-            };
-            widthGroup.appendChild(widthInput);
+            const widthValue = document.createElement('div');
+            widthValue.className = 'dim-value';
+            widthValue.textContent = (prod.details.width || '') + (prod.details.width ? ' سم' : '');
+            widthGroup.appendChild(widthValue);
             sizeRow.appendChild(widthGroup);
             wrap.appendChild(sizeRow);
             // السعر
