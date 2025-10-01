@@ -123,6 +123,7 @@ export default {
     // - for each conversation in the requested range, fetch the latest message
     // - use the message 'from' username unless it starts with 'whitebedding',
     //   in which case use the receiver
+    
     if (request.method === 'GET' && url.pathname === '/api/ig') {
       if (IG_ACCESS_TOKEN && IG_PAGE_ID) {
         try {
@@ -269,66 +270,58 @@ export default {
 
       // If dataset id and access token are available, forward to FB
       if (DATASET_ID && FB_ACCESS_TOKEN) {
+        // Build normalized events array and event body
+        const eventsArray = Array.isArray(payload) ? payload : [payload];
+        if (!Array.isArray(payload)) console.log('Normalized payload into array for CAPI, length=', eventsArray.length);
+        const eventBody = {
+          upload_tag: 'sales_receipt',
+          upload_source: 'server',
+          upload_time: Math.floor(Date.now() / 1000),
+          data: eventsArray
+        };
+
+        // Use helper to send to Facebook Dataset Events API (avoid internal fetch loops)
         try {
-          // Build request body for dataset events endpoint
-          // Ensure `data` is an array as required by CAPI. If the incoming
-          // payload is a single object, wrap it; if it's already an array,
-          // forward as-is.
-          const eventsArray = Array.isArray(payload) ? payload : [payload];
-          if (!Array.isArray(payload)) console.log('Normalized payload into array for CAPI, length=', eventsArray.length);
-          const eventBody = {
-            upload_tag: 'sales_receipt',
-            upload_source: 'server',
-            upload_time: Math.floor(Date.now() / 1000),
-            data: eventsArray
-          };
-
-          const fbUrl = `https://graph.facebook.com/v22.0/${DATASET_ID}/events?access_token=${encodeURIComponent(FB_ACCESS_TOKEN)}`;
-          // Retry loop for transient failures (e.g., 522). We'll attempt a few
-          // times and log each attempt. Keep retries short to avoid long waits.
-          const maxAttempts = 3;
-          let attempt = 0;
-          let fbRes = null;
-          let fbText = null;
-          let fbJson = null;
-          for (attempt = 1; attempt <= maxAttempts; attempt++) {
-            try {
-              console.log(`FB CAPI attempt ${attempt} -> POST ${fbUrl}`);
-              // Log the body we will send for easier debugging
-              console.log('FB CAPI payload:', eventBody);
-              fbRes = await fetch(fbUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                // Send the full event body as required by the Dataset Events API
-                body: JSON.stringify(eventBody)
-              });
-              fbText = await fbRes.text().catch(()=>null);
+          const sendResult = await (async function sendDatasetEvents(body) {
+            const fbUrl = `https://graph.facebook.com/v22.0/${DATASET_ID}/events`;
+            const maxAttempts = 3;
+            let attempt = 0;
+            let fbRes = null;
+            let fbText = null;
+            let fbJson = null;
+            for (attempt = 1; attempt <= maxAttempts; attempt++) {
+              try {
+                console.log(`FB CAPI attempt ${attempt} -> POST ${fbUrl}`);
+                console.log('FB CAPI payload:', body);
+                fbRes = await fetch(fbUrl, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': `Bearer ${FB_ACCESS_TOKEN}` },
+                  body: JSON.stringify(body)
+                });
+                fbText = await fbRes.text().catch(()=>null);
+                try { fbJson = fbText ? JSON.parse(fbText) : null; } catch(e) { fbJson = { raw: fbText }; }
+                console.log('FB CAPI response (attempt):', fbRes.status, fbJson);
+                if (fbRes.ok) break;
+                if (fbRes.status >= 400 && fbRes.status < 500) break;
+              } catch (e) {
+                console.error(`FB CAPI attempt ${attempt} error:`, e && e.stack ? e.stack : String(e));
+              }
+              if (attempt < maxAttempts) {
+                try { await new Promise(res => setTimeout(res, 500)); } catch(e) { /* ignore timing errors */ }
+              }
+            }
+            if (!fbJson) {
               try { fbJson = fbText ? JSON.parse(fbText) : null; } catch(e) { fbJson = { raw: fbText }; }
-              console.log('FB CAPI response (attempt):', fbRes.status, fbJson);
-              // If successful (2xx) break and proceed
-              if (fbRes.ok) break;
-              // If client error (4xx) don't retry
-              if (fbRes.status >= 400 && fbRes.status < 500) break;
-            } catch (e) {
-              console.error(`FB CAPI attempt ${attempt} error:`, e && e.stack ? e.stack : String(e));
             }
-            // If not last attempt, wait a short interval before retrying
-            if (attempt < maxAttempts) {
-              try { await new Promise(res => setTimeout(res, 500)); } catch(e) { /* ignore timing errors */ }
-            }
-          }
+            console.log('FB CAPI final result:', attempt, fbRes && fbRes.status, fbJson);
+            return { ok: fbRes && fbRes.ok, status: fbRes ? fbRes.status : null, fbJson, fbText };
+          })(eventBody);
 
-          // Final parse/normalize
-          if (!fbJson) {
-            try { fbJson = fbText ? JSON.parse(fbText) : null; } catch(e) { fbJson = { raw: fbText }; }
+          if (!sendResult.ok) {
+            return new Response(JSON.stringify({ success: false, forwarded: true, fbStatus: sendResult.status, fbBody: sendResult.fbJson, fbRaw: sendResult.fbText }), { headers: CORS_HEADERS, status: 502 });
           }
-          console.log('FB CAPI final result:', attempt, fbRes && fbRes.status, fbJson);
-
-          if (!fbRes || !fbRes.ok) {
-            return new Response(JSON.stringify({ success: false, forwarded: true, fbStatus: fbRes ? fbRes.status : null, fbBody: fbJson }), { headers: CORS_HEADERS, status: 502 });
-          }
-          console.log("eventBody:", eventBody);
-          return new Response(JSON.stringify({ success: true, forwarded: true, fbBody: fbJson }), { headers: CORS_HEADERS });
+          console.log('eventBody:', eventBody);
+          return new Response(JSON.stringify({ success: true, forwarded: true, fbBody: sendResult.fbJson }), { headers: CORS_HEADERS });
         } catch (e) {
           console.error('Error forwarding to FB CAPI:', e && e.stack ? e.stack : String(e));
           return new Response(JSON.stringify({ success: false, forwarded: false, error: String(e) }), { headers: CORS_HEADERS, status: 500 });
@@ -424,40 +417,72 @@ export default {
   await kvPut(`confirm:${key}`, entry);
   // attach meta to payload; ensure we DO NOT include the summary/preview
   // string in the forwarded event payload.
-  const payload = Object.assign({}, entry.payload);
-      // payload.__confirmation = { key, ip, ua, confirmed_at: entry.confirmed_at }; 
-      // payload.event_time = entry.confirmed_at;
-      // payload.user_data.client_ip_address = ip;
-      // payload.user_data.client_user_agent = ua;
-      // payload.event_name = "tp_web3";
-      // Log the confirmation payload details for operator debugging before forwarding
-      console.log('Forwarding confirmation payload to sales_receipt:', payload);
-      console.log("contents: ", payload.custom_data.contents)
-      // forward to internal sales_receipt handler by calling the same code path (POST to /sales_receipt)
+  // Deep-clone stored payload to avoid accidental mutations and ensure nested
+  // objects are preserved when forwarding. Use JSON round-trip for portability.
+  const payload = entry.payload ? JSON.parse(JSON.stringify(entry.payload)) : {};
+    // Log the confirmation payload details for operator debugging before forwarding
+    try { console.log('Forwarding confirmation payload to sales_receipt (stringified):', JSON.stringify(payload)); } catch(e) { console.log('Forwarding confirmation payload to sales_receipt (raw):', payload); }
+    try { console.log('contents: ', Array.isArray(payload.custom_data && payload.custom_data.contents) ? payload.custom_data.contents : payload.custom_data); } catch(e) { console.log('contents: <unavailable>'); }
+      // Instead of calling the worker via fetch (which can trigger 522 when
+      // the worker calls its own public URL), call the forwarding helper
+      // inline here to post directly to Facebook Dataset Events API.
       try {
-        // call internal handler by constructing a Request to /sales_receipt
-        const forwardReq = new Request(new URL('/sales_receipt', request.url).toString(), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        // Use global fetch (will hit this same worker)
-        const forwardRes = await fetch(forwardReq);
-        const forwardText = await forwardRes.text().catch(()=>null);
-        let forwardedJson = null;
-        try { forwardedJson = forwardText ? JSON.parse(forwardText) : null; } catch(e) { forwardedJson = { raw: forwardText }; }
-        // Log the internal /sales_receipt response and the underlying CAPI body when present
-        try {
-          console.log('Internal /sales_receipt response status:', forwardRes.status);
-          if (forwardedJson && forwardedJson.fbBody) {
-            console.log('CAPI response body:', forwardedJson.fbBody);
-          } else {
-            console.log('sales_receipt response body:', forwardedJson);
+        // Normalize payload into eventBody (same shape as sales_receipt handler expects)
+        payload.event_name = "PT-web3";
+        payload.event_time = Math.floor(Date.now() / 1000);
+
+        const eventsArray = Array.isArray(payload) ? payload : [payload];
+    
+        if (!Array.isArray(payload)) console.log('Normalized payload into array for CAPI (confirm), length=', eventsArray.length);
+        const eventBody = {
+          upload_tag: 'sales_receipt',
+          upload_source: 'server',
+          upload_time: Math.floor(Date.now() / 1000),
+          data: eventsArray
+        };
+
+
+        console.log('eventBody (from confirm):', eventBody);
+
+        // Inline send using the same helper logic as /sales_receipt
+        const fbUrl = `https://graph.facebook.com/v22.0/${DATASET_ID}/events`;
+        const maxAttempts = 3;
+        let attempt = 0;
+        let fbRes = null;
+        let fbText = null;
+        let fbJson = null;
+        for (attempt = 1; attempt <= maxAttempts; attempt++) {
+          try {
+            console.log(`FB CAPI attempt ${attempt} (from confirm) -> POST ${fbUrl}`);
+            // Log full JSON so nested objects are visible in logs (no [Object])
+            try { console.log('FB CAPI payload (from confirm):', JSON.stringify(eventBody)); } catch(e) { console.log('FB CAPI payload (from confirm):', eventBody); }
+            fbRes = await fetch(fbUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': `Bearer ${FB_ACCESS_TOKEN}` },
+              body: JSON.stringify(eventBody)
+            });
+            fbText = await fbRes.text().catch(()=>null);
+            try { fbJson = fbText ? JSON.parse(fbText) : null; } catch(e) { fbJson = { raw: fbText }; }
+            console.log('FB CAPI response (confirm attempt):', fbRes.status, fbJson);
+            if (fbRes.ok) break;
+            if (fbRes.status >= 400 && fbRes.status < 500) break;
+          } catch (e) {
+            console.error(`FB CAPI attempt ${attempt} (from confirm) error:`, e && e.stack ? e.stack : String(e));
           }
-        } catch (e) { console.warn('Failed to log forwarded response', e); }
-        return new Response(JSON.stringify({ success: true, forwarded: forwardRes.ok, fbResponse: forwardedJson }), { headers: CORS_HEADERS });
+          if (attempt < maxAttempts) {
+            try { await new Promise(res => setTimeout(res, 500)); } catch(e) { /* ignore timing errors */ }
+          }
+        }
+        if (!fbJson) {
+          try { fbJson = fbText ? JSON.parse(fbText) : null; } catch(e) { fbJson = { raw: fbText }; }
+        }
+        console.log('FB CAPI final result (from confirm):', attempt, fbRes && fbRes.status, fbJson);
+        if (!fbRes || !fbRes.ok) {
+          return new Response(JSON.stringify({ success: false, forwarded: true, fbStatus: fbRes ? fbRes.status : null, fbBody: fbJson, fbRaw: fbText }), { headers: CORS_HEADERS, status: 502 });
+        }
+        return new Response(JSON.stringify({ success: true, forwarded: true, fbBody: fbJson }), { headers: CORS_HEADERS });
       } catch (e) {
-        console.error('Error forwarding confirmation to sales_receipt:', e);
+        console.error('Error forwarding confirmation to sales_receipt (inline):', e && e.stack ? e.stack : String(e));
         return new Response(JSON.stringify({ success: false, error: String(e) }), { headers: CORS_HEADERS, status: 500 });
       }
     }
@@ -481,6 +506,43 @@ export default {
   const cur = await kvIncrementCounter(day);
   return new Response(JSON.stringify({ success: true, saved: true, index: savedOrders.length-1, counters: { [day]: cur } }), { headers: CORS_HEADERS });
       } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: String(e) }), { headers: CORS_HEADERS, status: 500 });
+      }
+    }
+
+    // GET /capi_test -> send a minimal test event to Facebook Dataset Events
+    if (request.method === 'GET' && url.pathname === '/capi_test') {
+      if (!DATASET_ID || !FB_ACCESS_TOKEN) {
+        return new Response(JSON.stringify({ success: false, message: 'Missing DATASET_ID or FB_ACCESS_TOKEN in env/secrets' }), { headers: CORS_HEADERS, status: 400 });
+      }
+      // Minimal valid event for testing: event_name and user_data (with client_ip or email)
+      const testEvent = {
+        event_name: 'test_event',
+        event_time: Math.floor(Date.now() / 1000),
+        user_data: {
+          // Using a placeholder client_ip_address (not hashed) for quick test — replace if your dataset requires hashing
+          client_ip_address: request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for') || null
+        },
+        custom_data: { test: true }
+      };
+      const eventBody = { upload_tag: 'capi_test', upload_source: 'server', upload_time: Math.floor(Date.now()/1000), data: [testEvent] };
+      const fbUrl = `https://graph.facebook.com/v22.0/${DATASET_ID}/events`;
+      try {
+        const start = Date.now();
+        console.log('CAPI test payload:', eventBody);
+        const fbRes = await fetch(fbUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': `Bearer ${FB_ACCESS_TOKEN}` },
+          body: JSON.stringify(eventBody)
+        });
+        const fbText = await fbRes.text().catch(()=>null);
+        const duration = Date.now() - start;
+        let fbJson = null;
+        try { fbJson = fbText ? JSON.parse(fbText) : null; } catch(e) { fbJson = { raw: fbText }; }
+        console.log('CAPI test result:', fbRes.status, 'duration_ms:', duration, fbJson);
+        return new Response(JSON.stringify({ success: true, status: fbRes.status, duration_ms: duration, body: fbJson, raw: fbText }), { headers: CORS_HEADERS });
+      } catch (e) {
+        console.error('CAPI test error:', e && e.stack ? e.stack : String(e));
         return new Response(JSON.stringify({ success: false, error: String(e) }), { headers: CORS_HEADERS, status: 500 });
       }
     }
