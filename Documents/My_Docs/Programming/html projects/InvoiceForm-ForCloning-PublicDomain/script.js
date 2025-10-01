@@ -2145,8 +2145,16 @@ window.onclick = function(event) {
                 // unify emoji to cloud
                 let emoji = '☁';
                 // build display name: prefer specific subtype when available
-                let subtype = prod.setType || prod.pillowType || prod.mattressType || prod.duvetType || prod.wpId || prod.customName || '';
-                let displayName = prod.type + (subtype ? (' ' + subtype) : '');
+                let subtype = prod.setType || prod.pillowType || prod.mattressType || prod.duvetType || prod.customName || '';
+                let displayName = '';
+                if (!subtype) {
+                    displayName = prod.type;
+                } else {
+                    // clean subtype of any redundant type mentions
+                    subtype = subtype.replace(new RegExp(prod.type, 'g'), '').trim();
+                    displayName = `${prod.type} ${subtype}`;
+                }
+                
                 // product label using Arabic words up to 10, else numeric
                 const ord = arabicOrdinalWord(i+1);
                 const productLabel = ord ? ('المنتج ' + ord) : ('المنتج رقم ' + (i+1));
@@ -2156,9 +2164,9 @@ window.onclick = function(event) {
                     str += `${prod.description.trim()}\n`;
                 }
                 if (prod.type === "فراش") {
-                    str = str.slice(0, -1);
-                    str += ' '
-                    str += `${prod.mattressType}\n`;
+                    // str = str.slice(0, -1);
+                    // str += ' '
+                    // str += `${prod.mattressType}\n`;
                     str += `القياس: ${prod.length||''} × ${prod.width||''} × ${prod.height||''}\n`;
                     str += `السعر: ${formatNumber(prod.price)}\n`;
                     str += `وزن الأشخاص: ${prod.personWeight||''}\n`;
@@ -2166,7 +2174,7 @@ window.onclick = function(event) {
                     str += `العدد: ${prod.qty||1}\n\n`;
                 } else if (prod.type === "وسادة") {
                     str = str.replace(`${prod.type}\n`, '');
-                    str += `${prod.pillowType}\n`;
+                    // str += `${prod.pillowType}\n`;
                     if (prod.weight) str += `الوزن: ${prod.weight}\n`;
                     str += `السعر: ${formatNumber(prod.price)}\n`;
                     str += `العدد: ${prod.qty||1}\n\n`;
