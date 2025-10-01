@@ -681,9 +681,23 @@
                     container.appendChild(measDiv);
                 }
             })();
-            // --- وصف ---
-            wrap.appendChild(renderDescriptionSection());
-            // الطول والعرض والارتفاع
+            // --- قياس خاص checkbox (switch between quick-select and custom inputs)
+            const customMeasDiv = document.createElement('div');
+            customMeasDiv.className = 'field-group';
+            const customLabel = document.createElement('label');
+            customLabel.style.display = 'inline-flex';
+            customLabel.style.alignItems = 'center';
+            customLabel.style.cursor = 'pointer';
+            const customCheckbox = document.createElement('input');
+            customCheckbox.type = 'checkbox';
+            customCheckbox.style.marginLeft = '6px';
+            customCheckbox.checked = !!prod.details.customMeasure;
+            customLabel.appendChild(customCheckbox);
+            customLabel.appendChild(document.createTextNode('قياس خاص'));
+            customMeasDiv.appendChild(customLabel);
+            mattressGroup.appendChild(customMeasDiv);
+
+            // الطول والعرض والارتفاع (hidden by default unless customMeasure is true)
             const sizeRow = document.createElement('div');
             sizeRow.className = 'input-row';
             // الطول
@@ -776,6 +790,9 @@
             };
             heightGroup.appendChild(heightInput);
             sizeRow.appendChild(heightGroup);
+            // default visibility depends on customMeasure flag
+            const isCustom = !!prod.details.customMeasure;
+            sizeRow.style.display = isCustom ? '' : 'none';
             wrap.appendChild(sizeRow);
             // السعر
             const priceGroup = document.createElement('div');
@@ -796,8 +813,14 @@
                 if (typeof updateProductTotal === 'function') updateProductTotal();
                 updateTotal();
             };
+            // make price read-only unless custom measurement mode is enabled
+            priceInput.readOnly = !isCustom;
+            if (priceInput.readOnly) priceInput.classList.add('readonly');
             priceGroup.appendChild(priceInput);
             wrap.appendChild(priceGroup);
+            // --- move description to appear above "وزن الأشخاص" per user request
+            wrap.appendChild(renderDescriptionSection());
+
             // وزن الأشخاص
             const weightGroup = document.createElement('div');
             weightGroup.className = 'field-group';
@@ -817,6 +840,81 @@
             };
             weightGroup.appendChild(weightSelect);
             wrap.appendChild(weightGroup);
+
+            // --- Wire up the custom-measure checkbox behavior ---
+            (function(){
+                // helper: restore quick-select choices into prod.details
+                function restoreQuickSelection() {
+                    try {
+                        const mtName = prod.details && prod.details.mattressType;
+                        const cfg = mattressDetailsMap[mtName];
+                        if (!cfg) return;
+                        // fixedHeightText case -> measurements[]
+                        if (cfg.fixedHeightText && Array.isArray(cfg.measurements)) {
+                            let chosen = null;
+                            if (prod.details._mattressMeasureChoice) {
+                                chosen = cfg.measurements.find(m=>m.label===prod.details._mattressMeasureChoice);
+                            }
+                            if (!chosen) chosen = cfg.measurements.find(m=>m.default) || cfg.measurements[0];
+                            if (chosen) {
+                                prod.details.width = chosen.w;
+                                prod.details.length = chosen.l;
+                                prod.details.price = chosen.price;
+                                prod.details._mattressMeasureChoice = chosen.label;
+                            }
+                        } else if (Array.isArray(cfg.heights)) {
+                            const heights = cfg.heights;
+                            let hObj = null;
+                            if (prod.details._mattressHeightChoice) {
+                                hObj = heights.find(h=>h.h==prod.details._mattressHeightChoice);
+                            }
+                            if (!hObj) hObj = heights.find(h=>h.default) || heights[0];
+                            const measures = hObj && hObj.measurements ? hObj.measurements : [];
+                            let chosen = null;
+                            if (prod.details._mattressMeasureChoice) chosen = measures.find(m=>m.label===prod.details._mattressMeasureChoice);
+                            if (!chosen) chosen = measures.find(m=>m.default) || measures[0];
+                            if (hObj && chosen) {
+                                prod.details.height = hObj.h;
+                                prod.details.width = chosen.w;
+                                prod.details.length = chosen.l;
+                                prod.details.price = chosen.price;
+                                prod.details._mattressHeightChoice = hObj.h;
+                                prod.details._mattressMeasureChoice = chosen.label;
+                            }
+                        }
+                    } catch(e) { /* ignore */ }
+                }
+
+                // find the measurement containers inside mattressOptionsDiv to hide/show
+                const optionsContainer = mattressGroup.querySelector('.mattress-options');
+                const heightsContainer = optionsContainer ? optionsContainer.querySelector('.heights-container') : null;
+                const sizesContainer = optionsContainer ? optionsContainer.querySelector('.sizes-container') : null;
+
+                function applyMode(customOn) {
+                    // show/hide quick-select containers
+                    if (heightsContainer) heightsContainer.style.display = customOn ? 'none' : '';
+                    if (sizesContainer) sizesContainer.style.display = customOn ? 'none' : '';
+                    // show/hide manual size inputs
+                    sizeRow.style.display = customOn ? '' : 'none';
+                    // price readonly toggling
+                    priceInput.readOnly = !customOn;
+                    if (priceInput.readOnly) priceInput.classList.add('readonly'); else priceInput.classList.remove('readonly');
+                    // when switching off custom, restore quick selection values as authoritative
+                    if (!customOn) {
+                        restoreQuickSelection();
+                    }
+                    renderProducts();
+                    updateTotal();
+                }
+
+                // initial application
+                applyMode(!!prod.details.customMeasure);
+
+                customCheckbox.addEventListener('change', function() {
+                    prod.details.customMeasure = !!this.checked;
+                    applyMode(prod.details.customMeasure);
+                });
+            })();
             // الضمان
             const warrantyGroup = document.createElement('div');
             warrantyGroup.className = 'field-group input-row';
