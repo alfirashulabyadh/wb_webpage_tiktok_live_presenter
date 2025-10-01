@@ -83,6 +83,9 @@
         flex-direction: column;
         gap: 6px;
     }
+
+    /* smaller gap specifically after the custom measurement checkbox */
+    .custom-meas { margin-bottom: 6px; }
     label {
         font-weight: 500;
         color: var(--primary);

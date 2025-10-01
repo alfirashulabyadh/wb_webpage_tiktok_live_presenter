@@ -511,7 +511,8 @@
                 // if has fixedHeightText, show it and measurement buttons
                 if (cfg.fixedHeightText) {
                     const p = document.createElement('div');
-                    p.className = 'field-group';
+                    // mark this fixed-height text so we can hide it during custom measurement mode
+                    p.className = 'field-group fixed-height-text';
                     p.textContent = cfg.fixedHeightText;
                     container.appendChild(p);
                     // measurements
@@ -577,7 +578,7 @@
                             updateTotal();
                         };
                         // mark active if this measurement is selected, or if it's the default and no selection yet
-                        if (prod.details._mattressMeasureChoice === m.label || (m.default && !prod.details._mattressMeasureChoice)) {
+                        if (!prod.details.customMeasure && (prod.details._mattressMeasureChoice === m.label || (m.default && !prod.details._mattressMeasureChoice))) {
                             prod.details.width = m.w;
                             prod.details.length = m.l;
                             prod.details.price = m.price;
@@ -626,7 +627,7 @@
                             updateTotal();
                         };
                         // default selection
-                        if ((hObj.default && (prod.details._mattressHeightChoice===undefined)) || prod.details._mattressHeightChoice===hObj.h) {
+                        if (!prod.details.customMeasure && ((hObj.default && (prod.details._mattressHeightChoice===undefined)) || prod.details._mattressHeightChoice===hObj.h)) {
                             // mark active with the same active class used by measurement buttons
                             hb.classList.add('size-select-active');
                             prod.details._mattressHeightChoice = hObj.h;
@@ -669,7 +670,7 @@
                             updateTotal();
                         };
                         // mark active if this measurement is selected, or if it's the default and no selection yet
-                        if (prod.details._mattressMeasureChoice === m.label || (m.default && !prod.details._mattressMeasureChoice)) {
+                        if (!prod.details.customMeasure && (prod.details._mattressMeasureChoice === m.label || (m.default && !prod.details._mattressMeasureChoice))) {
                             prod.details.width = m.w;
                             prod.details.length = m.l;
                             prod.details.price = m.price;
@@ -683,7 +684,7 @@
             })();
             // --- قياس خاص checkbox (switch between quick-select and custom inputs)
             const customMeasDiv = document.createElement('div');
-            customMeasDiv.className = 'field-group';
+            customMeasDiv.className = 'field-group custom-meas';
             const customLabel = document.createElement('label');
             customLabel.style.display = 'inline-flex';
             customLabel.style.alignItems = 'center';
@@ -914,6 +915,32 @@
                     // when switching off custom, restore quick selection values as authoritative
                     if (!customOn) {
                         restoreQuickSelection();
+                        // update visual active state of buttons to match restored choices
+                        if (optionsContainer) {
+                            // measurements
+                            const measureBtns = optionsContainer.querySelectorAll('.sizes-container .size-select-btn');
+                            measureBtns.forEach(btn => {
+                                const txt = btn.textContent && btn.textContent.trim();
+                                btn.classList.toggle('size-select-active', txt === prod.details._mattressMeasureChoice);
+                            });
+                            // heights
+                            const heightBtns = optionsContainer.querySelectorAll('.heights-container .size-select-btn');
+                            heightBtns.forEach(btn => {
+                                const txt = btn.textContent && btn.textContent.trim();
+                                btn.classList.toggle('size-select-active', txt === String(prod.details._mattressHeightChoice));
+                            });
+                            // fixed-height text (if exists) should be visible now
+                            const fixedText = optionsContainer.querySelector('.fixed-height-text');
+                            if (fixedText) fixedText.style.display = '';
+                        }
+                    } else {
+                        // when entering custom mode, hide any active visual state on quick-select buttons
+                        if (optionsContainer) {
+                            const allBtns = optionsContainer.querySelectorAll('.size-select-btn');
+                            allBtns.forEach(b => b.classList.remove('size-select-active'));
+                            const fixedText = optionsContainer.querySelector('.fixed-height-text');
+                            if (fixedText) fixedText.style.display = 'none';
+                        }
                     }
                     updateTotal();
                 }
