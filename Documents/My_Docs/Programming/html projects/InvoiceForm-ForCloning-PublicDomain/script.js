@@ -670,6 +670,11 @@
             lengthInput.value = prod.details.length || 200;
             lengthInput.oninput = function() {
                 prod.details.length = parseNumber(this.value);
+                // If user manually edited dimensions, clear any "suggested"
+                // measurement markers so future rendering won't override manual values.
+                try { delete prod.details._mattressMeasureChoice; } catch(e) {}
+                try { delete prod.details._mattressHeightChoice; } catch(e) {}
+                updateTotal();
                 try {
                     const mtName = prod.details && prod.details.mattressType;
                     const cfg = mattressDetailsMap[mtName];
@@ -695,6 +700,10 @@
             widthInput.value = prod.details.width || 180;
             widthInput.oninput = function() {
                 prod.details.width = parseNumber(this.value);
+                // Clear suggested-choice flags when user types a custom width
+                try { delete prod.details._mattressMeasureChoice; } catch(e) {}
+                try { delete prod.details._mattressHeightChoice; } catch(e) {}
+                updateTotal();
                 try {
                     const mtName = prod.details && prod.details.mattressType;
                     const cfg = mattressDetailsMap[mtName];
@@ -722,6 +731,10 @@
             heightInput.value = prod.details.height || selectedMattress.height;
             heightInput.oninput = function() {
                 prod.details.height = parseNumber(this.value);
+                // Clear suggested-choice flags when user types a custom height
+                try { delete prod.details._mattressHeightChoice; } catch(e) {}
+                try { delete prod.details._mattressMeasureChoice; } catch(e) {}
+                updateTotal();
                 try {
                     const mtName = prod.details && prod.details.mattressType;
                     const cfg = mattressDetailsMap[mtName];
@@ -749,6 +762,9 @@
             priceInput.value = prod.details.price || selectedMattress.price;
             priceInput.oninput = function() {
                 prod.details.price = parseNumber(this.value);
+                // Manual price edits should persist and override suggested choices
+                try { delete prod.details._mattressMeasureChoice; } catch(e) {}
+                try { delete prod.details._mattressHeightChoice; } catch(e) {}
                 if (typeof updateProductTotal === 'function') updateProductTotal();
                 updateTotal();
             };
@@ -2087,8 +2103,11 @@ window.onclick = function(event) {
             else if (customer.platform.includes("مباشر")) action_source = "physical_store";
             else action_source = "other";
 
+            // Determine event_name from radio selection (Purchase <-> PT-web3)
+            const eventModeRadio = document.querySelector('input[name="eventMode"]:checked');
+            const eventNameSelected = eventModeRadio ? eventModeRadio.value : 'Purchase';
             let json = {
-                event_name: "PT_web2",
+                event_name: eventNameSelected,
                 event_time: unixTimestamp,
                 action_source,
                 user_data: {

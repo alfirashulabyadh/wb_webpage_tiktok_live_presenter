@@ -201,6 +201,12 @@
                     <label for="salesPerson">اسم موظف المبيعات</label>
                     <input type="text" id="salesPerson" required>
                 </div>
+                <!-- Event type selector (placed above the submit button) -->
+                <div class="field-group" style="margin-bottom:8px;">
+                    <label style="display:block;margin-bottom:6px;">نوع الوصل</label>
+                    <label style="margin-right:12px;cursor:pointer;"><input type="radio" name="eventMode" value="Purchase" checked style="margin-left:6px;"> حقيقي</label>
+                    <label style="cursor:pointer;"><input type="radio" name="eventMode" value="PT-web3" style="margin-left:6px;"> تجريبي</label>
+                </div>
                 <button type="button" class="submit-btn" id="submitBtn">تسليم الوصل</button>
             </div>
         </form>

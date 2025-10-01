@@ -427,9 +427,11 @@ export default {
       // the worker calls its own public URL), call the forwarding helper
       // inline here to post directly to Facebook Dataset Events API.
       try {
-        // Normalize payload into eventBody (same shape as sales_receipt handler expects)
-        payload.event_name = "PT-web3";
-        payload.event_time = Math.floor(Date.now() / 1000);
+  // Normalize payload into eventBody (same shape as sales_receipt handler expects)
+  // Preserve event_name sent by client (e.g., Purchase or PT-web3). Only
+  // set a sensible default if the client didn't include one.
+  if (!payload.event_name) payload.event_name = "PT-web3";
+  if (!payload.event_time) payload.event_time = Math.floor(Date.now() / 1000);
 
         const eventsArray = Array.isArray(payload) ? payload : [payload];
     
