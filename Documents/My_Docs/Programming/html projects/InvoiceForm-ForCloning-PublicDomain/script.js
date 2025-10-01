@@ -2130,11 +2130,31 @@ window.onclick = function(event) {
 
 
             // --- String Format ---
+            // helper: produce Arabic ordinal words for product numbering (use words up to 10)
+            function arabicOrdinalWord(n) {
+                const map = {
+                    1: 'الأول',2: 'الثاني',3: 'الثالث',4: 'الرابع',5: 'الخامس',
+                    6: 'السادس',7: 'السابع',8: 'الثامن',9: 'التاسع',10: 'العاشر'
+                };
+                return map[n] || null;
+            }
+
             let str = '________ إيصال الطلب ________';
             str += '\n';
             productsData.forEach((prod, i)=>{
-                let emoji = getProductEmoji(prod.type);
-                str += `${emoji} المنتج ${i+1}: ${prod.type}\n`;
+                // unify emoji to cloud
+                let emoji = '☁';
+                // build display name: prefer specific subtype when available
+                let subtype = prod.setType || prod.pillowType || prod.mattressType || prod.duvetType || prod.wpId || prod.customName || '';
+                let displayName = prod.type + (subtype ? (' ' + subtype) : '');
+                // product label using Arabic words up to 10, else numeric
+                const ord = arabicOrdinalWord(i+1);
+                const productLabel = ord ? ('المنتج ' + ord) : ('المنتج رقم ' + (i+1));
+                str += `${emoji} ${productLabel}: ${displayName}\n`;
+                // include description when present
+                if (prod.description && prod.description.trim()) {
+                    str += `${prod.description.trim()}\n`;
+                }
                 if (prod.type === "فراش") {
                     str = str.slice(0, -1);
                     str += ' '
