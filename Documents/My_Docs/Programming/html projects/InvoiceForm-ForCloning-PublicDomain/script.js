@@ -891,9 +891,21 @@
                 const sizesContainer = optionsContainer ? optionsContainer.querySelector('.sizes-container') : null;
 
                 function applyMode(customOn) {
-                    // show/hide quick-select containers
+                    // show/hide quick-select containers (heights and sizes)
                     if (heightsContainer) heightsContainer.style.display = customOn ? 'none' : '';
-                    if (sizesContainer) sizesContainer.style.display = customOn ? 'none' : '';
+                    if (optionsContainer) {
+                        const allSizes = optionsContainer.querySelectorAll('.sizes-container');
+                        allSizes.forEach(n => n.style.display = customOn ? 'none' : '');
+                    } else if (sizesContainer) {
+                        sizesContainer.style.display = customOn ? 'none' : '';
+                    }
+
+                    // also hide the labels for heights/measurement if present
+                    const heightsLabel = optionsContainer ? optionsContainer.querySelector('.heights-label') : null;
+                    const measureLabel = optionsContainer ? optionsContainer.querySelector('.measure-label') : null;
+                    if (heightsLabel) heightsLabel.style.display = customOn ? 'none' : '';
+                    if (measureLabel) measureLabel.style.display = customOn ? 'none' : '';
+
                     // show/hide manual size inputs
                     sizeRow.style.display = customOn ? '' : 'none';
                     // price readonly toggling
@@ -903,7 +915,6 @@
                     if (!customOn) {
                         restoreQuickSelection();
                     }
-                    renderProducts();
                     updateTotal();
                 }
 
