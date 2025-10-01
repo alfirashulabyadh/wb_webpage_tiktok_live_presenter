@@ -294,10 +294,13 @@ export default {
           for (attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
               console.log(`FB CAPI attempt ${attempt} -> POST ${fbUrl}`);
+              // Log the body we will send for easier debugging
+              console.log('FB CAPI payload:', eventBody);
               fbRes = await fetch(fbUrl, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(eventsArray)
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                // Send the full event body as required by the Dataset Events API
+                body: JSON.stringify(eventBody)
               });
               fbText = await fbRes.text().catch(()=>null);
               try { fbJson = fbText ? JSON.parse(fbText) : null; } catch(e) { fbJson = { raw: fbText }; }
@@ -424,9 +427,9 @@ export default {
   const payload = Object.assign({}, entry.payload);
       // payload.__confirmation = { key, ip, ua, confirmed_at: entry.confirmed_at }; 
       // payload.event_time = entry.confirmed_at;
-      payload.user_data.client_ip_address = ip;
-      payload.user_data.client_user_agent = ua;
-      payload.event_name = "tp_web3";
+      // payload.user_data.client_ip_address = ip;
+      // payload.user_data.client_user_agent = ua;
+      // payload.event_name = "tp_web3";
       // Log the confirmation payload details for operator debugging before forwarding
       console.log('Forwarding confirmation payload to sales_receipt:', payload);
       console.log("contents: ", payload.custom_data.contents)
