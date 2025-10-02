@@ -393,7 +393,7 @@ export default {
   const customerHonorific = (/^f$|^female$|أنثى|انثى/i.test(String(customerGender))) ? 'السيدة' : 'السيد';
   const safeCustomerName = String(customerName || '').replace(/</g, '&lt;');
         const already = entry.confirmed ? 'true' : 'false';
-    const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تأكيد الطلب</title><style>body{font-family:Arial,Helvetica,sans-serif;padding:18px}#confirmLogo{max-width:220px;display:block;margin:0 auto 12px} .order-recipient{font-weight:700;margin-bottom:8px;text-align:right;font-size:1.05em} pre#orderPreview{background:#f6f6f6;padding:12px;border-radius:6px;white-space:pre-wrap} #btn{padding:12px 18px;border-radius:10px;border:0;background:linear-gradient(90deg,#0b78d1,#0a9bd6);color:#fff;cursor:pointer;display:inline-block;min-width:220px;box-shadow:0 8px 20px rgba(10,120,210,0.18)} #btn[disabled]{opacity:0.6;cursor:default} #btnCancel{padding:10px 14px;border-radius:8px;border:1px solid #ddd;background:#f4f4f4;margin-inline-start:12px}</style></head><body dir="rtl"><h2>مراجعة وتأكيد الطلب</h2><img id="confirmLogo" src="https://i.ibb.co/vxdH8xQ2/Landscape-Dark-Cyan.png" alt="Logo"><p>يرجى مراجعة ملخص الطلب أدناه. اضغط "أوافق" لتأكيد الطلب وإرساله.</p><div class="order-recipient">إلى ${customerHonorific} ${safeCustomerName}</div><h3>ملخص الطلب</h3><pre id="orderPreview">${pretty}</pre><div style="margin-top:12px"><button id="btn">أوافق</button><button id="btnCancel" onclick="location.reload();">إلغاء</button><span id="status" style="margin-inline-start:12px;color:#666"></span></div><script>
+  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تأكيد الطلب</title><style>body{font-family:Arial,Helvetica,sans-serif;padding:18px}#confirmLogo{max-width:320px;display:block;margin:0 auto 16px} .order-recipient{font-weight:700;margin-bottom:8px;text-align:right;font-size:1.05em;color:#0b78d1} pre#orderPreview{background:#f6f6f6;padding:12px;border-radius:6px;white-space:pre-wrap} .product-header{font-weight:700;font-size:1.25em;color:#0b78d1;margin-top:10px;padding-bottom:6px;border-bottom:1px solid #eee} #btn{padding:14px 20px;border-radius:10px;border:0;background:linear-gradient(90deg,#0b78d1,#0a9bd6);color:#fff;cursor:pointer;display:inline-block;min-width:220px;box-shadow:0 8px 20px rgba(10,120,210,0.18);font-family:'Cairo', Arial, sans-serif} #btn[disabled]{opacity:0.6;cursor:default} #btnCancel{padding:10px 14px;border-radius:8px;border:1px solid #ddd;background:#f4f4f4;margin-inline-start:12px}</style></head><body dir="rtl"><img id="confirmLogo" src="https://i.ibb.co/vxdH8xQ2/Landscape-Dark-Cyan.png" alt="Logo"><h2 style="color:#0b78d1;font-family:'Cairo', Arial, sans-serif">مراجعة وتأكيد الطلب</h2><p>يرجى مراجعة ملخص الطلب أدناه. اضغط "أوافق" لتأكيد الطلب وإرساله.</p><div class="order-recipient">إلى ${customerHonorific} ${safeCustomerName}</div><h3 style="font-family:'Cairo', Arial, sans-serif;color:#0a9bd6">ملخص الطلب</h3><pre id="orderPreview">${pretty}</pre><div style="margin-top:12px"><button id="btn">أوافق</button><button id="btnCancel" onclick="location.reload();">إلغاء</button><span id="status" style="margin-inline-start:12px;color:#666"></span></div><script>
       // format preview: bold product header lines (lines starting with the cloud emoji and 'المنتج')
       (function(){
         const pre = document.getElementById('orderPreview');
@@ -402,7 +402,11 @@ export default {
           function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
           const lines = raw.split(/\n/);
           const formatted = lines.map(line => {
-            if (/^\s*☁\s*المنتج/.test(line)) return '<div style="font-weight:700; margin-top:10px; padding-bottom:6px; border-bottom:1px solid #eee">' + escapeHtml(line) + '</div>';
+            const ltrim = line.replace(/^\s+/,'');
+            // avoid regex literal for compatibility; use startsWith and includes
+            if (ltrim.startsWith('☁') && ltrim.includes('المنتج')) {
+              return '<div class="product-header">' + escapeHtml(line) + '</div>';
+            }
             return escapeHtml(line);
           }).join('<br>');
           pre.innerHTML = formatted;

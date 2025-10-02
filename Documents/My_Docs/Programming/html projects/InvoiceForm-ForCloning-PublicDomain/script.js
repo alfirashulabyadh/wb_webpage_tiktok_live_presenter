@@ -2394,6 +2394,24 @@ window.onclick = function(event) {
                             title.style.marginTop = '0';
                             modal.appendChild(title);
 
+                            // modal styles (brand colors, larger product headings)
+                            const modalStyle = document.createElement('style');
+                            modalStyle.textContent = `
+                                .wb-brand { color: #0b78d1; font-family: 'Cairo', Arial, sans-serif; }
+                                .modal-recipient { font-weight:700; color: #0a9bd6; margin-bottom:8px; }
+                                .product-header { font-weight:700; font-size:1.15em; color:#0b78d1; margin-top:10px; padding-bottom:6px; border-bottom:1px solid #eee; }
+                            `;
+                            document.head && document.head.appendChild(modalStyle);
+
+                            // Logo at top (modal)
+                            const logo = document.createElement('img');
+                            logo.src = 'https://i.ibb.co/vxdH8xQ2/Landscape-Dark-Cyan.png';
+                            logo.alt = 'Logo';
+                            logo.style.maxWidth = '220px';
+                            logo.style.display = 'block';
+                            logo.style.margin = '0 0 10px 0';
+                            modal.insertBefore(logo, title);
+
                             const instructions = document.createElement('p');
                             instructions.textContent = 'الرجاء مراجعة تفاصيل الطلب أدناه، ثم اضغط "تأكيد وإرسال" للموافقة.';
                             modal.appendChild(instructions);
@@ -2414,10 +2432,27 @@ window.onclick = function(event) {
                             }
                             let formatted = escapeHtml(textPreview || '');
                             // Bold lines starting with cloud emoji and the word 'المنتج'
-                            formatted = formatted.replace(/(^|\n)\s*(☁\s*المنتج[^:\n]*:[^\n]*)/gmu, '$1<strong>$2</strong>');
+                            // Use RegExp constructor to avoid engine-specific literal parsing issues
+                            const headerPattern = '(^|\\n)\\s*(\\u2601\\s*المنتج[^:\\n]*:[^\\n]*)';
+                            const headerRegex = new RegExp(headerPattern, 'gm');
+                            formatted = formatted.replace(headerRegex, '$1<strong class="product-header">$2</strong>');
                             // Convert newlines to <br>
                             formatted = formatted.replace(/\n/g, '<br>');
                             pre.innerHTML = formatted;
+
+                            // Recipient line showing full customer name (if available)
+                            try {
+                                const custName = (typeof customer !== 'undefined' && customer && customer.name) ? customer.name : ((document.getElementById('customerName') && document.getElementById('customerName').value) || '');
+                                if (custName) {
+                                    const recipientLine = document.createElement('div');
+                                    // include honorific plus full name
+                                    const genderLabel = (typeof customer !== 'undefined' && customer && customer.gender === 'f') ? 'السيدة' : 'السيد';
+                                    recipientLine.textContent = `إلى ${genderLabel} ${custName}`;
+                                    recipientLine.className = 'modal-recipient';
+                                    // insert above the preview
+                                    modal.insertBefore(recipientLine, pre);
+                                }
+                            } catch (e) { /* ignore */ }
                             modal.appendChild(pre);
 
                     const actions = document.createElement('div');
