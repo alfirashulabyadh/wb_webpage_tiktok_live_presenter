@@ -2150,9 +2150,8 @@ window.onclick = function(event) {
                 if (!subtype) {
                     displayName = prod.type;
                 } else {
-                    // clean subtype of any redundant type mentions
-                    subtype = subtype.replace(new RegExp(prod.type, 'g'), '').trim();
-                    displayName = `${prod.type} ${subtype}`;
+                    if (prod.mattressType) displayName = `فراش ${subtype}`;
+                    displayName = `${subtype}`;
                 }
                 
                 // product label using Arabic words up to 10, else numeric
@@ -2202,12 +2201,25 @@ window.onclick = function(event) {
             // حساب المجموع قبل الخصم
             // }
             str += `كلفة التوصيل: ${formatNumber(deliveryCost)}\n`;
-            if (deliveryDays === 1) {
-                str += `مدة التوصيل: يوم واحد\n\n`;
-            } else if (deliveryDays === 2) {
-                str += `مدة التوصيل: يومين\n\n`;
+            // deliveryMode can be 'days' | 'note' | 'direct'
+            const deliveryModeSelected = (document.querySelector('input[name="deliveryMode"]:checked') || {}).value || 'days';
+            const deliveryNoteText = (document.getElementById('deliveryNote') && document.getElementById('deliveryNote').value) ? document.getElementById('deliveryNote').value.trim() : '';
+            if (deliveryModeSelected === 'direct') {
+                // Direct preparation — show as such instead of a numeric duration
+                str += `مدة التوصيل: تجهيز مباشر\n\n`;
+            } else if (deliveryModeSelected === 'note') {
+                // Use the delivery note text provided by user
+                const noteLine = deliveryNoteText ? `التوصيل: ${deliveryNoteText}` : `التوصيل: -`;
+                str += `${noteLine}\n\n`;
             } else {
-                str += `مدة التوصيل: ${deliveryDays} أيام\n\n`;
+                // Normal days mode
+                if (deliveryDays === 1) {
+                    str += `مدة التوصيل: يوم واحد\n\n`;
+                } else if (deliveryDays === 2) {
+                    str += `مدة التوصيل: يومين\n\n`;
+                } else {
+                    str += `مدة التوصيل: ${deliveryDays} أيام\n\n`;
+                }
             }
             if (discountType === 'fixed' | discountType === 'percent') {
                 str += `💰 المجموع قبل الخصم: ${formatNumber(preDiscount)}\n`;
@@ -2377,20 +2389,36 @@ window.onclick = function(event) {
                     modal.style.overflow = 'auto';
                     modal.style.boxShadow = '0 6px 24px rgba(0,0,0,0.25)';
 
-                    const title = document.createElement('h2');
-                    title.textContent = 'تأكيد الطلب';
-                    title.style.marginTop = '0';
-                    modal.appendChild(title);
+                            const title = document.createElement('h2');
+                            title.textContent = 'تأكيد الطلب';
+                            title.style.marginTop = '0';
+                            modal.appendChild(title);
 
-                    const instructions = document.createElement('p');
-                    instructions.textContent = 'الرجاء مراجعة تفاصيل الطلب أدناه، ثم اضغط "تأكيد وإرسال" للموافقة.';
-                    modal.appendChild(instructions);
+                            const instructions = document.createElement('p');
+                            instructions.textContent = 'الرجاء مراجعة تفاصيل الطلب أدناه، ثم اضغط "تأكيد وإرسال" للموافقة.';
+                            modal.appendChild(instructions);
 
-                    const pre = document.createElement('pre');
-                    pre.style.whiteSpace = 'pre-wrap';
-                    pre.style.fontFamily = 'inherit';
-                    pre.textContent = textPreview;
-                    modal.appendChild(pre);
+                            // (logo and recipient are shown on the external confirmation page; not on the in-app modal)
+
+                            const pre = document.createElement('pre');
+                            pre.style.whiteSpace = 'pre-wrap';
+                            pre.style.fontFamily = 'inherit';
+                            // Escape HTML then bold product header lines (lines that begin with the cloud emoji and "المنتج")
+                            function escapeHtml(str) {
+                                return String(str)
+                                    .replace(/&/g, '&amp;')
+                                    .replace(/</g, '&lt;')
+                                    .replace(/>/g, '&gt;')
+                                    .replace(/"/g, '&quot;')
+                                    .replace(/'/g, '&#039;');
+                            }
+                            let formatted = escapeHtml(textPreview || '');
+                            // Bold lines starting with cloud emoji and the word 'المنتج'
+                            formatted = formatted.replace(/(^|\n)\s*(☁\s*المنتج[^:\n]*:[^\n]*)/gmu, '$1<strong>$2</strong>');
+                            // Convert newlines to <br>
+                            formatted = formatted.replace(/\n/g, '<br>');
+                            pre.innerHTML = formatted;
+                            modal.appendChild(pre);
 
                     const actions = document.createElement('div');
                     actions.style.display = 'flex';
@@ -2402,13 +2430,23 @@ window.onclick = function(event) {
                     confirmBtn.type = 'button';
                     confirmBtn.textContent = 'تأكيد وإرسال';
                     confirmBtn.className = 'submit-btn';
-                    confirmBtn.style.padding = '8px 14px';
+                    // Make the confirm button wide and attractive
+                    confirmBtn.style.padding = '12px 20px';
+                    confirmBtn.style.background = 'linear-gradient(90deg,#0b78d1,#0a9bd6)';
+                    confirmBtn.style.color = '#fff';
+                    confirmBtn.style.border = 'none';
+                    confirmBtn.style.borderRadius = '8px';
+                    confirmBtn.style.fontSize = '1.05em';
+                    confirmBtn.style.minWidth = '260px';
+                    confirmBtn.style.cursor = 'pointer';
 
                     const cancelBtn = document.createElement('button');
                     cancelBtn.type = 'button';
                     cancelBtn.textContent = 'إلغاء';
-                    cancelBtn.style.padding = '8px 14px';
-                    cancelBtn.style.background = '#eee';
+                    cancelBtn.style.padding = '10px 16px';
+                    cancelBtn.style.background = '#f4f4f4';
+                    cancelBtn.style.border = '1px solid #ddd';
+                    cancelBtn.style.borderRadius = '8px';
 
                     actions.appendChild(confirmBtn);
                     actions.appendChild(cancelBtn);
