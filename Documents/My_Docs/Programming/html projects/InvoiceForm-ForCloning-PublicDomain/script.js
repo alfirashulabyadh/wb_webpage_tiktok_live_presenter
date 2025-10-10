@@ -2508,7 +2508,9 @@ window.onclick = function(event) {
                             // server (create_order) is being contacted.
                             try {
                                 if (popup && popup.document) {
-                                    const interimHtml = `<!doctype html><html lang="ar"><head><meta charset="utf-8"><title>جاري إنشاء الطلب...</title><meta name="viewport" content="width=device-width,initial-scale=1" /><style>html,body{height:100%;}body{font-family: Arial, Helvetica, sans-serif;display:flex;align-items:center;justify-content:center;margin:0;background:#fafafa} .msg{direction:rtl;text-align:center;padding:18px;} .spinner{width:52px;height:52px;border:6px solid #eee;border-top-color:#0b78d1;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px}@keyframes spin{to{transform:rotate(360deg)}}</style></head><body><div class="msg"><div class="spinner" aria-hidden="true"></div><div style="font-size:1.05em;color:#333">...جاري إنشاء صفحة التأكيد</div></div></body></html>`;
+                                    const interimHtml = `<!doctype html><html lang="ar"><head><meta charset="utf-8"><title>جاري إنشاء الطلب...</title><meta name="viewport" content="width=device-width,initial-scale=1" /><style>html,body{height:100%;}body{font-family: Arial, Helvetica, sans-serif;display:flex;align-items:center;justify-content:center;margin:0;background:#fafafa} .msg{direction:rtl;text-align:center;padding:18px;} .spinner{width:52px;height:52px;border:6px solid #eee;border-top-color:#0b78d1;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px}@keyframes spin{to{transform:rotate(360deg)}}</style></head><body><div class="msg"><div class="spinner" aria-hidden="true"></div><div style="font-size:1.05em;color:#333">...جاري إنشاء صفحة التأكيد</div></div><script>window.addEventListener('message', function(e){ try{ var d=e.data||{}; if(d && d.type==='navigate' && d.url){ window.location.href = d.url; } }catch(err){} }, false); // Optionally post a ready message
+                                    try{ window.opener && window.opener.postMessage && window.opener.postMessage({type:'popup-ready'}, '*'); }catch(e){}
+                                    </script></body></html>`;
                                     popup.document.open();
                                     popup.document.write(interimHtml);
                                     popup.document.close();
@@ -2520,7 +2522,30 @@ window.onclick = function(event) {
                         } catch (e) {
                             popup = null;
                         }
-                        resolve({ overlay, confirmBtn, popup });
+                        // Show a persistent loading row inside the modal
+                        const loadingRow = document.createElement('div');
+                        loadingRow.style.display = 'flex';
+                        loadingRow.style.alignItems = 'center';
+                        loadingRow.style.gap = '10px';
+                        loadingRow.style.marginTop = '12px';
+                        const spin = document.createElement('div');
+                        spin.style.width = '20px';
+                        spin.style.height = '20px';
+                        spin.style.border = '3px solid #eee';
+                        spin.style.borderTopColor = '#0b78d1';
+                        spin.style.borderRadius = '50%';
+                        spin.style.animation = 'spinLocal 1s linear infinite';
+                        const statusText = document.createElement('div');
+                        statusText.textContent = 'جاري إنشاء رابط التأكيد...';
+                        loadingRow.appendChild(spin);
+                        loadingRow.appendChild(statusText);
+                        modal.appendChild(loadingRow);
+                        const localStyle = document.createElement('style');
+                        localStyle.textContent = '@keyframes spinLocal{to{transform:rotate(360deg)}}';
+                        document.head.appendChild(localStyle);
+                        // disable cancel to avoid losing loading state accidentally
+                        cancelBtn.disabled = true;
+                        resolve({ overlay, confirmBtn, popup, loadingRow, statusText, cancelBtn });
                     };
                 });
             }
@@ -2570,63 +2595,61 @@ window.onclick = function(event) {
                 // Create an order confirmation URL so the customer can confirm
                 // on orders.whitebedding.net. If create_order fails we fall back
                 // to immediately posting to /sales_receipt (legacy behavior).
-                let createdConfirmURL = null;
-                try {
-                    // Use AbortController to bound create_order latency so UI isn't stuck forever
-                    const ac = new AbortController();
-                    const timeoutMs = 8000; // 8 seconds
-                    const tid = setTimeout(() => ac.abort(), timeoutMs);
-                    console.time('create_order-duration');
-                    const createResp = await fetch(API_BASE_URL + '/create_order', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ json, preview: str, ts: Date.now() }),
-                        signal: ac.signal
-                    });
-                    clearTimeout(tid);
-                    console.timeEnd('create_order-duration');
-                    const createJ = await createResp.json().catch(()=>null);
-                    if (createResp.ok && createJ && createJ.confirmURL) {
-                        createdConfirmURL = createJ.confirmURL;
-                        // Log the URL for operator debugging
-                        console.log('Confirmation URL:', createdConfirmURL);
-                        // If we opened a popup from the click handler, navigate it now
-                        if (modalResult && modalResult.popup) {
+                // Launch create_order in the background (non-blocking) and navigate popup when ready.
+                // Build a background task so the UI (modal) doesn't wait on network.
+                (async function backgroundCreateOrder(popupRef, payload, previewStr, modalHandles) {
+                    try {
+                        console.time('create_order-duration');
+                        const ac = new AbortController();
+                        const timeoutMs = 12000; // 12s - slightly longer background timeout
+                        const tid = setTimeout(() => ac.abort(), timeoutMs);
+                        const createResp = await fetch(API_BASE_URL + '/create_order', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ json: payload, preview: previewStr, ts: Date.now() }),
+                            signal: ac.signal
+                        });
+                        clearTimeout(tid);
+                        console.timeEnd('create_order-duration');
+                        const createJ = await createResp.json().catch(()=>null);
+                        if (createResp.ok && createJ && createJ.confirmURL) {
+                            const url = createJ.confirmURL;
+                            console.log('Background create_order confirmURL:', url);
                             try {
-                                modalResult.popup.location = createdConfirmURL;
-                                modalResult.popup.focus();
-                            } catch (e) {
-                                // Failed to set popup location (rare) - fallback to open
-                                try { window.open(createdConfirmURL, '_blank'); } catch (e2) { /* ignore */ }
-                            }
-                        } else {
-                            // No popup reference (browser blocked or unavailable) - try opening normally
-                            try { window.open(createdConfirmURL, '_blank'); } catch(e) { /* ignore */ }
-                        }
+                                // If popup is available and still open, postMessage to it so it can navigate.
+                                if (popupRef && !popupRef.closed) {
+                                    try {
+                                        popupRef.postMessage({ type: 'navigate', url }, '*');
+                                    } catch (e) {
+                                        // fallback: navigate directly
+                                        try { popupRef.location = url; } catch(e2) { window.open(url, '_blank'); }
+                                    }
+                                } else {
+                                    // popup closed or unavailable - open normally
+                                    window.open(url, '_blank');
+                                }
 
-                        // Attempt to copy confirmation link to clipboard and notify operator
-                        let copied = false;
-                        if (navigator.clipboard && window.isSecureContext) {
+                                // update modal UI if provided
+                                try { if (modalHandles && modalHandles.statusText) modalHandles.statusText.textContent = 'تم إنشاء رابط التأكيد. جاري التحويل...'; } catch(e){}
+                                try { if (modalHandles && modalHandles.cancelBtn) modalHandles.cancelBtn.disabled = false; } catch(e){}
+                            } catch (e) { console.warn('Failed to navigate popup in backgroundCreateOrder', e); }
+
+                            // attempt clipboard copy but don't await user-visible UI
                             try {
-                                await navigator.clipboard.writeText(createdConfirmURL);
-                                copied = true;
-                                showSnackbar('تم إنشاء رابط التأكيد ونسخه');
-                            } catch (e) {
-                                // clipboard write failed
-                                console.warn('clipboard write failed', e);
-                            }
+                                if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(url);
+                            } catch (e) {}
+                        } else {
+                            console.warn('Background create_order did not return confirmURL', createJ);
+                            try { if (modalHandles && modalHandles.statusText) modalHandles.statusText.textContent = 'تعذر إنشاء الرابط؛ سيتم إرسال نسخة بديلة.'; } catch(e){}
+                            try { if (modalHandles && modalHandles.cancelBtn) modalHandles.cancelBtn.disabled = false; } catch(e){}
                         }
-                        if (!copied) {
-                            // Fallback copy (may also be blocked, but try)
-                            try { fallbackCopyTextToClipboard(createdConfirmURL); showSnackbar('تم إنشاء رابط التأكيد'); } catch(e) { /* ignore */ }
-                        }
-                    } else {
-                        console.warn('create_order did not return confirmURL, falling back', createJ);
+                    } catch (e) {
+                        console.warn('backgroundCreateOrder error', e && e.name ? e.name : e);
+                        try { if (modalHandles && modalHandles.statusText) modalHandles.statusText.textContent = 'حدث خطأ أثناء إنشاء الرابط.'; } catch(e){}
+                        try { if (modalHandles && modalHandles.cancelBtn) modalHandles.cancelBtn.disabled = false; } catch(e){}
                     }
-                } catch (e) {
-                    if (e && e.name === 'AbortError') console.warn('create_order aborted due to timeout');
-                    else console.error('create_order error, falling back to sales_receipt', e);
-                }
+                })(modalResult && modalResult.popup, json, str, modalResult);
+
                 // Ensure we don't wait indefinitely for IP; pick the ipPromise result if available
                 try { clientIP = await Promise.race([ipPromise, Promise.resolve('')]); } catch(e) { clientIP = ''; }
 
