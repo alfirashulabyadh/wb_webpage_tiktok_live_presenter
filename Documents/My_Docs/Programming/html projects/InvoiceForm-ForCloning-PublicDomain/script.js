@@ -2534,16 +2534,21 @@ window.onclick = function(event) {
                 let clientIP = '';
                 const ipPromise = (async () => {
                     try {
+                        console.time('ipify-fetch-duration');
                         const ac = new AbortController();
                         const tid = setTimeout(() => ac.abort(), 2000); // 2s timeout
                         const ipRes = await fetch('https://api.ipify.org?format=json', { signal: ac.signal });
                         clearTimeout(tid);
                         if (ipRes && ipRes.ok) {
                             const ipJson = await ipRes.json().catch(()=>null);
+                            console.timeEnd('ipify-fetch-duration');
+                            console.log('ipify result', ipJson);
                             return (ipJson && ipJson.ip) ? ipJson.ip : '';
                         }
+                        console.timeEnd('ipify-fetch-duration');
                     } catch (e) {
-                        // ignore failures/timeouts
+                        console.timeEnd('ipify-fetch-duration');
+                        console.warn('ipify fetch error or timeout', e && e.name ? e.name : e);
                     }
                     return '';
                 })();
@@ -2571,6 +2576,7 @@ window.onclick = function(event) {
                     const ac = new AbortController();
                     const timeoutMs = 8000; // 8 seconds
                     const tid = setTimeout(() => ac.abort(), timeoutMs);
+                    console.time('create_order-duration');
                     const createResp = await fetch(API_BASE_URL + '/create_order', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -2578,6 +2584,7 @@ window.onclick = function(event) {
                         signal: ac.signal
                     });
                     clearTimeout(tid);
+                    console.timeEnd('create_order-duration');
                     const createJ = await createResp.json().catch(()=>null);
                     if (createResp.ok && createJ && createJ.confirmURL) {
                         createdConfirmURL = createJ.confirmURL;
@@ -2627,11 +2634,14 @@ window.onclick = function(event) {
                 // sending the sales_receipt immediately so data isn't lost.
                 if (!createdConfirmURL) {
                     try {
+                        console.log('No confirmURL - falling back to /sales_receipt');
+                        console.time('sales_receipt-duration');
                         const resp = await fetch(API_BASE_URL + '/sales_receipt', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(json)
                         });
+                        console.timeEnd('sales_receipt-duration');
                         try { const j = await resp.json().catch(()=>null); console.log('sales_receipt response', j); } catch (e) {}
                     } catch (e) {
                         console.error('sales_receipt fetch error', e);
