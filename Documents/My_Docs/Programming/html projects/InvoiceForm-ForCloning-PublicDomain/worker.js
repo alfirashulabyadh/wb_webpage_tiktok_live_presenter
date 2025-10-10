@@ -498,6 +498,26 @@ export default {
       const ua = request.headers.get('user-agent') || '';
       // Cloudflare provides CF-Connecting-IP header; fallback to x-forwarded-for or remote
       const ip = request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for') || null;
+      // Also attempt to read the Facebook browser id (_fbp or fbp) from cookies
+      // The expected value should start with 'fb.' per FB cookie format but
+      // we will accept either `_fbp` or `fbp` cookie name and keep the raw value.
+      let fbp = null;
+      try {
+        const cookieHeader = request.headers.get('cookie') || '';
+        // simple cookie parse: split on ';' then on '='
+        cookieHeader.split(';').forEach(pair => {
+          const p = pair.trim();
+          if (!p) return;
+          const eq = p.indexOf('=');
+          if (eq < 0) return;
+          const name = p.slice(0, eq).trim();
+          const val = p.slice(eq+1).trim();
+          if (!fbp && (name === '_fbp' || name === 'fbp')) {
+            fbp = val;
+          }
+        });
+      } catch (e) { /* ignore cookie parse errors */ }
+      if (fbp) entry.fbp = fbp;
   entry.confirmed = true;
   entry.ip = ip;
   entry.ua = ua;
@@ -512,6 +532,16 @@ export default {
     // Log the confirmation payload details for operator debugging before forwarding
     try { console.log('Forwarding confirmation payload to sales_receipt (stringified):', JSON.stringify(payload)); } catch(e) { console.log('Forwarding confirmation payload to sales_receipt (raw):', payload); }
     try { console.log('contents: ', Array.isArray(payload.custom_data && payload.custom_data.contents) ? payload.custom_data.contents : payload.custom_data); } catch(e) { console.log('contents: <unavailable>'); }
+    // Ensure the recorded IP/UA are attached to user_data so downstream
+    // receivers (e.g., Facebook Dataset Events API) see client_ip_address
+    // and client_user_agent when available. Do not overwrite existing values.
+    try {
+      if (!payload.user_data || typeof payload.user_data !== 'object') payload.user_data = {};
+      if (!payload.user_data.client_ip_address && entry.ip) payload.user_data.client_ip_address = entry.ip;
+      if (!payload.user_data.client_user_agent && entry.ua) payload.user_data.client_user_agent = entry.ua;
+      // Include non-hashed Facebook browser id (fbp) if present
+      if (!payload.user_data.fbp && entry.fbp) payload.user_data.fbp = entry.fbp;
+    } catch (e) { /* ignore enrichment errors */ }
       // Instead of calling the worker via fetch (which can trigger 522 when
       // the worker calls its own public URL), call the forwarding helper
       // inline here to post directly to Facebook Dataset Events API.
