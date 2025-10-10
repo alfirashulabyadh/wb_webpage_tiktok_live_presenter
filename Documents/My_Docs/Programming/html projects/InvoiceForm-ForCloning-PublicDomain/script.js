@@ -2503,6 +2503,20 @@ window.onclick = function(event) {
                         let popup = null;
                         try {
                             popup = window.open('about:blank', '_blank');
+                            // If popup opened, write a small interim page (spinner + message)
+                            // so the user doesn't see a completely blank tab while the
+                            // server (create_order) is being contacted.
+                            try {
+                                if (popup && popup.document) {
+                                    const interimHtml = `<!doctype html><html lang="ar"><head><meta charset="utf-8"><title>جاري إنشاء الطلب...</title><meta name="viewport" content="width=device-width,initial-scale=1" /><style>html,body{height:100%;}body{font-family: Arial, Helvetica, sans-serif;display:flex;align-items:center;justify-content:center;margin:0;background:#fafafa} .msg{direction:rtl;text-align:center;padding:18px;} .spinner{width:52px;height:52px;border:6px solid #eee;border-top-color:#0b78d1;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px}@keyframes spin{to{transform:rotate(360deg)}}</style></head><body><div class="msg"><div class="spinner" aria-hidden="true"></div><div style="font-size:1.05em;color:#333">...جاري إنشاء صفحة التأكيد</div></div></body></html>`;
+                                    popup.document.open();
+                                    popup.document.write(interimHtml);
+                                    popup.document.close();
+                                    try { popup.focus(); } catch(e){}
+                                }
+                            } catch (e) {
+                                // ignore write failures (e.g., popup blocked or closed)
+                            }
                         } catch (e) {
                             popup = null;
                         }
@@ -2514,20 +2528,25 @@ window.onclick = function(event) {
             try {
                 // Show modal and wait for customer confirmation
                 const modalResult = await showOrderConfirmationModal(str);
-                // After confirmation, capture public IP and User-Agent
-                let clientIP = '';
-                try {
-                    // Use a public IP echo service for local testing; this is fine
-                    // for dev but you can replace with your own endpoint later.
-                    const ipRes = await fetch('https://api.ipify.org?format=json');
-                    if (ipRes && ipRes.ok) {
-                        const ipJson = await ipRes.json().catch(()=>null);
-                        clientIP = (ipJson && ipJson.ip) ? ipJson.ip : '';
-                    }
-                } catch (e) {
-                    console.warn('Failed to fetch public IP', e);
-                }
+                // After confirmation: capture public IP (with short timeout) and User-Agent
+                // Fetch IP in parallel but with a safety timeout so slow network won't block the UI
                 const userAgent = navigator.userAgent || '';
+                let clientIP = '';
+                const ipPromise = (async () => {
+                    try {
+                        const ac = new AbortController();
+                        const tid = setTimeout(() => ac.abort(), 2000); // 2s timeout
+                        const ipRes = await fetch('https://api.ipify.org?format=json', { signal: ac.signal });
+                        clearTimeout(tid);
+                        if (ipRes && ipRes.ok) {
+                            const ipJson = await ipRes.json().catch(()=>null);
+                            return (ipJson && ipJson.ip) ? ipJson.ip : '';
+                        }
+                    } catch (e) {
+                        // ignore failures/timeouts
+                    }
+                    return '';
+                })();
 
                 // Append metadata to payload (unhashed) and hashed versions to user_data
                 // json.metadata = json.metadata || {};
@@ -2548,11 +2567,17 @@ window.onclick = function(event) {
                 // to immediately posting to /sales_receipt (legacy behavior).
                 let createdConfirmURL = null;
                 try {
+                    // Use AbortController to bound create_order latency so UI isn't stuck forever
+                    const ac = new AbortController();
+                    const timeoutMs = 8000; // 8 seconds
+                    const tid = setTimeout(() => ac.abort(), timeoutMs);
                     const createResp = await fetch(API_BASE_URL + '/create_order', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ json, preview: str, ts: Date.now() })
+                        body: JSON.stringify({ json, preview: str, ts: Date.now() }),
+                        signal: ac.signal
                     });
+                    clearTimeout(tid);
                     const createJ = await createResp.json().catch(()=>null);
                     if (createResp.ok && createJ && createJ.confirmURL) {
                         createdConfirmURL = createJ.confirmURL;
@@ -2592,8 +2617,11 @@ window.onclick = function(event) {
                         console.warn('create_order did not return confirmURL, falling back', createJ);
                     }
                 } catch (e) {
-                    console.error('create_order error, falling back to sales_receipt', e);
+                    if (e && e.name === 'AbortError') console.warn('create_order aborted due to timeout');
+                    else console.error('create_order error, falling back to sales_receipt', e);
                 }
+                // Ensure we don't wait indefinitely for IP; pick the ipPromise result if available
+                try { clientIP = await Promise.race([ipPromise, Promise.resolve('')]); } catch(e) { clientIP = ''; }
 
                 // If create_order failed to produce a confirm URL, fall back to
                 // sending the sales_receipt immediately so data isn't lost.

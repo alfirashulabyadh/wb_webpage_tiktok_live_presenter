@@ -387,36 +387,69 @@ export default {
           summary = `الاسم: ${name}\nالرقم: ${phone}\nالمجموع: ${total}`;
         }
   const pretty = String(summary).replace(/</g, '&lt;');
-  // compute customer name and honorific for display on confirmation page
-  const customerName = payload.customer && payload.customer.name ? payload.customer.name : (payload.customerName || '');
-  const customerGender = (payload.customer && payload.customer.gender) ? payload.customer.gender : (payload.gender || '');
-  const customerHonorific = (/^f$|^female$|أنثى|انثى/i.test(String(customerGender))) ? 'السيدة' : 'السيد';
-  const safeCustomerName = String(customerName || '').replace(/</g, '&lt;');
-        const already = entry.confirmed ? 'true' : 'false';
-  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تأكيد الطلب</title><style>body{font-family:Arial,Helvetica,sans-serif;padding:18px}#confirmLogo{max-width:320px;display:block;margin:0 auto 16px} .order-recipient{font-weight:700;margin-bottom:8px;text-align:right;font-size:1.05em;color:#0b78d1} pre#orderPreview{background:#f6f6f6;padding:12px;border-radius:6px;white-space:pre-wrap} .product-header{font-weight:700;font-size:1.25em;color:#0b78d1;margin-top:10px;padding-bottom:6px;border-bottom:1px solid #eee} #btn{padding:14px 20px;border-radius:10px;border:0;background:linear-gradient(90deg,#0b78d1,#0a9bd6);color:#fff;cursor:pointer;display:inline-block;min-width:220px;box-shadow:0 8px 20px rgba(10,120,210,0.18);font-family:'Cairo', Arial, sans-serif} #btn[disabled]{opacity:0.6;cursor:default} #btnCancel{padding:10px 14px;border-radius:8px;border:1px solid #ddd;background:#f4f4f4;margin-inline-start:12px}</style></head><body dir="rtl"><img id="confirmLogo" src="https://i.ibb.co/vxdH8xQ2/Landscape-Dark-Cyan.png" alt="Logo"><h2 style="color:#0b78d1;font-family:'Cairo', Arial, sans-serif">مراجعة وتأكيد الطلب</h2><p>يرجى مراجعة ملخص الطلب أدناه. اضغط "أوافق" لتأكيد الطلب وإرساله.</p><div class="order-recipient">إلى ${customerHonorific} ${safeCustomerName}</div><h3 style="font-family:'Cairo', Arial, sans-serif;color:#0a9bd6">ملخص الطلب</h3><pre id="orderPreview">${pretty}</pre><div style="margin-top:12px"><button id="btn">أوافق</button><button id="btnCancel" onclick="location.reload();">إلغاء</button><span id="status" style="margin-inline-start:12px;color:#666"></span></div><script>
-      // format preview: bold product header lines (lines starting with the cloud emoji and 'المنتج')
-      (function(){
-        const pre = document.getElementById('orderPreview');
-        try {
-          const raw = pre.textContent || '';
-          function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-          const lines = raw.split(/\n/);
-          const formatted = lines.map(line => {
-            const ltrim = line.replace(/^\s+/,'');
-            // avoid regex literal for compatibility; use startsWith and includes
-            if (ltrim.startsWith('☁') && ltrim.includes('المنتج')) {
-              return '<div class="product-header">' + escapeHtml(line) + '</div>';
-            }
-            return escapeHtml(line);
-          }).join('<br>');
-          pre.innerHTML = formatted;
-        } catch(e) { /* ignore formatting errors */ }
-      })();
-      const btn=document.getElementById('btn');
-      const status=document.getElementById('status');
-      const already=${already};
-      if(already){ btn.disabled=true; btn.textContent='تم التأكيد'; status.textContent='تم تأكيد هذا الطلب سابقاً.'; }
-      btn.addEventListener('click', async function(){ if(btn.disabled) return; btn.disabled=true; btn.textContent='جاري الإرسال...'; status.textContent=''; try{ const r=await fetch(location.pathname + '/confirm', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ts: Date.now() }) }); const j=await r.json().catch(()=>null); if(r.ok && j && j.success){ console.log('Confirmation forwarded, server response:', j); document.body.innerHTML = '<h3>تم التأكيد. شكراً.</h3>'; } else if (j && j.message === 'already_confirmed'){ console.log('Already confirmed on server:', j); document.body.innerHTML = '<h3>تم التأكيد سابقاً. شكراً.</h3>'; } else { console.error('Confirmation failed', r.status, j); document.body.innerHTML = '<h3>حدث خطأ. حاول لاحقاً.</h3>'; } } catch(e){ console.error('Confirm request error', e); document.body.innerHTML = '<h3>خطأ في الاتصال.</h3>'; } });</script></body></html>`;
+  // compute initial customer name and gender hint for the confirmation page
+  const customerNameFromPayload = payload && payload.customer && payload.customer.name ? payload.customer.name : (payload.customerName || '');
+  // try to extract 'الاسم: <name>' line from the summary if payload lacks a name
+  let extractedName = '';
+  try {
+    const m = String(summary).match(/^\s*الاسم:\s*(.+)$/m);
+    if (m && m[1]) extractedName = m[1].trim();
+  } catch (e) { /* ignore */ }
+  const initialCustomerName = customerNameFromPayload || extractedName || '';
+  const initialGenderHint = (payload && payload.customer && payload.customer.gender) ? String(payload.customer.gender) : (payload.gender || '');
+  const safeCustomerName = String(initialCustomerName || '').replace(/</g, '&lt;');
+    const alreadyFlag = entry.confirmed ? '1' : '0';
+  // build confirm action URL for the form
+  const confirmAction = `${url.pathname}/confirm`;
+
+  const html = `<!doctype html>
+  <html lang="ar">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>تأكيد الطلب</title>
+    <!-- Use Cairo font and tidy, project-aligned colors -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+      :root{--primary:#1282a2;--secondary:#e0ae4c;--muted:#666}
+      html,body{height:100%;margin:0;font-family:'Cairo',sans-serif;background:#fff;color:#222}
+      .wrap{max-width:720px;margin:22px auto;padding:20px}
+      #confirmLogo{max-width:220px;display:block;margin:0 auto 14px}
+      h2{color:var(--primary);text-align:center;margin:8px 0 14px}
+      p.lead{color:var(--muted);text-align:center;margin:0 0 18px}
+      .meta{color:var(--primary);font-weight:700;text-align:right;margin-bottom:10px}
+      pre#orderPreview{background:#f6f9fa;padding:16px;border-radius:12px;white-space:pre-wrap;border:1px solid #eef6f8;font-size:1.06rem;line-height:1.5;color:#16394a}
+      .order-key{color:var(--primary);font-weight:800;margin-right:6px}
+      .order-value{color:#0b4b5a;font-weight:600}
+      .product-header{font-weight:800;color:var(--primary);margin:8px 0;padding-bottom:6px;border-bottom:1px solid #eee}
+      .actions{margin-top:14px;display:flex;gap:12px;justify-content:flex-end;align-items:center}
+      /* Use primary brand color for button (solid) */
+      #btn{padding:12px 20px;border-radius:10px;border:0;background:var(--primary);color:#fff;cursor:pointer;min-width:160px;box-shadow:0 6px 18px rgba(18,130,162,0.14)}
+      #btn[disabled]{opacity:0.6;cursor:default}
+      #btnCancel{padding:10px 14px;border-radius:8px;border:1px solid #ddd;background:#f7f7f7;color:#333}
+      #status{color:var(--muted);margin-inline-start:12px}
+      @media (max-width:520px){.actions{flex-direction:column;align-items:stretch}#btn{width:100%;min-width:0}}
+    </style>
+  </head>
+  <body dir="rtl" data-confirmed="${alreadyFlag}">
+    <div class="wrap">
+      <img id="confirmLogo" src="https://i.ibb.co/vxdH8xQ2/Landscape-Dark-Cyan.png" alt="Logo">
+      <h2>مراجعة وتأكيد الطلب</h2>
+      <p class="lead">يرجى مراجعة ملخص الطلب أدناه ثم اضغط "أوافق" لتأكيد وإرسال الطلب.</p>
+      ${safeCustomerName ? `<div class="meta">اسم العميل: ${safeCustomerName}</div>` : ''}
+      <h3 class="product-header">ملخص الطلب</h3>
+      <pre id="orderPreview">${pretty}</pre>
+      <div class="actions">
+        <form id="confirmForm" method="post" action="${confirmAction}" style="display:inline-block;margin:0" onsubmit="(function(){const b=this.querySelector('#btn'); if(b){ b.disabled=true; b.textContent='جاري الإرسال...'; }})()"> 
+          <button id="btn" type="submit">أوافق</button>
+        </form>
+        <button id="btnCancel" onclick="location.reload();">إلغاء</button>
+        <span id="status"></span>
+      </div>
+    </div>
+    <!-- Inline scripts removed to avoid parsing/encoding issues; form has an onsubmit handler for basic UX -->
+  </body>
+  </html>`;
         return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Access-Control-Allow-Origin': '*' } });
       }
     }
@@ -427,10 +460,21 @@ export default {
       const parts = url.pathname.split('/').filter(Boolean);
       const key = parts[0];
   const entry = await kvGet(`confirm:${key}`);
-  if (!entry) return new Response(JSON.stringify({ success: false, message: 'not found' }), { headers: CORS_HEADERS, status: 404 });
+  const isFormReq = !(request.headers.get('content-type') || '').includes('application/json');
+  if (!entry) {
+    if (isFormReq) {
+      const nf = `<!doctype html><html><head><meta charset="utf-8"><title>Not found</title></head><body dir="rtl" style="font-family:Arial,Helvetica,sans-serif;padding:18px"><h3>الرابط غير صالح أو منتهي.</h3></body></html>`;
+      return new Response(nf, { headers: { 'Content-Type': 'text/html; charset=utf-8' }, status: 404 });
+    }
+    return new Response(JSON.stringify({ success: false, message: 'not found' }), { headers: CORS_HEADERS, status: 404 });
+  }
       // If already confirmed, return an idempotent response and do not forward again
       if (entry.confirmed) {
         console.log('Confirm called but already confirmed for key', key);
+        if (isFormReq) {
+          const alreadyHtml = `<!doctype html><html><head><meta charset="utf-8"><title>تم التأكيد سابقاً</title></head><body dir="rtl" style="font-family:Arial,Helvetica,sans-serif;padding:18px"><h3>تم التأكيد سابقاً. شكراً.</h3></body></html>`;
+          return new Response(alreadyHtml, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+        }
         return new Response(JSON.stringify({ success: false, message: 'already_confirmed' }), { headers: CORS_HEADERS });
       }
       // record requester IP and UA
@@ -508,11 +552,28 @@ export default {
         }
         console.log('FB CAPI final result (from confirm):', attempt, fbRes && fbRes.status, fbJson);
         if (!fbRes || !fbRes.ok) {
+          // If this request came from a browser form, return a simple HTML error page
+          const isForm = !(request.headers.get('content-type') || '').includes('application/json');
+          if (isForm) {
+            const errHtml = `<!doctype html><html><head><meta charset="utf-8"><title>خطأ</title></head><body dir="rtl" style="font-family:Arial,Helvetica,sans-serif;padding:18px"><h3>حدث خطأ أثناء إرسال الطلب.</h3><p>فضلاً حاول لاحقاً.</p></body></html>`;
+            return new Response(errHtml, { headers: { 'Content-Type': 'text/html; charset=utf-8' }, status: 502 });
+          }
           return new Response(JSON.stringify({ success: false, forwarded: true, fbStatus: fbRes ? fbRes.status : null, fbBody: fbJson, fbRaw: fbText }), { headers: CORS_HEADERS, status: 502 });
+        }
+        // On success, respond with HTML if it was a browser form submit
+        const isFormSuccess = !(request.headers.get('content-type') || '').includes('application/json');
+        if (isFormSuccess) {
+          const okHtml = `<!doctype html><html><head><meta charset="utf-8"><title>تم التأكيد</title></head><body dir="rtl" style="font-family:Arial,Helvetica,sans-serif;padding:18px"><h3>تم التأكيد. شكراً.</h3></body></html>`;
+          return new Response(okHtml, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
         }
         return new Response(JSON.stringify({ success: true, forwarded: true, fbBody: fbJson }), { headers: CORS_HEADERS });
       } catch (e) {
         console.error('Error forwarding confirmation to sales_receipt (inline):', e && e.stack ? e.stack : String(e));
+        const isForm = !(request.headers.get('content-type') || '').includes('application/json');
+        if (isForm) {
+          const errHtml = `<!doctype html><html><head><meta charset="utf-8"><title>خطأ</title></head><body dir="rtl" style="font-family:Arial,Helvetica,sans-serif;padding:18px"><h3>حدث خطأ أثناء إرسال الطلب.</h3><p>فضلاً حاول لاحقاً.</p></body></html>`;
+          return new Response(errHtml, { headers: { 'Content-Type': 'text/html; charset=utf-8' }, status: 500 });
+        }
         return new Response(JSON.stringify({ success: false, error: String(e) }), { headers: CORS_HEADERS, status: 500 });
       }
     }
