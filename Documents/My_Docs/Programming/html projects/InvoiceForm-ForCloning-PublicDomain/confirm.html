@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ar">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>تأكيد الطلب</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{--primary:#1282a2;--muted:#666}
+    html,body{height:100%;margin:0;font-family:'Cairo',sans-serif;background:#fff;color:#222}
+    .wrap{max-width:720px;margin:22px auto;padding:20px}
+    #confirmLogo{max-width:220px;display:block;margin:0 auto 14px}
+    h2{color:var(--primary);text-align:center;margin:8px 0 14px}
+    p.lead{color:var(--muted);text-align:center;margin:0 0 18px}
+    .meta{color:var(--primary);font-weight:700;text-align:right;margin-bottom:10px}
+    pre#orderPreview{background:#f6f9fa;padding:16px;border-radius:12px;white-space:pre-wrap;border:1px solid #eef6f8;font-size:1.06rem;line-height:1.5;color:#16394a}
+    .actions{margin-top:14px;display:flex;gap:12px;justify-content:flex-end;align-items:center}
+    #btn{padding:12px 20px;border-radius:10px;border:0;background:var(--primary);color:#fff;cursor:pointer;min-width:160px;box-shadow:0 6px 18px rgba(18,130,162,0.14)}
+    #btn[disabled]{opacity:0.6;cursor:default}
+    #btnCancel{padding:10px 14px;border-radius:8px;border:1px solid #ddd;background:#f7f7f7;color:#333}
+    #status{color:var(--muted);margin-inline-start:12px}
+  </style>
+</head>
+<body dir="rtl">
+  <div class="wrap">
+    <img id="confirmLogo" src="https://i.ibb.co/vxdH8xQ2/Landscape-Dark-Cyan.png" alt="Logo">
+    <h2>مراجعة وتأكيد الطلب</h2>
+    <p class="lead">سيظهر ملخص الطلب أدناه. اضغط "أوافق" لتأكيد الطلب وإرساله.</p>
+
+    <div id="customerMeta" class="meta" style="display:none"></div>
+    <h3 class="product-header">ملخص الطلب</h3>
+    <pre id="orderPreview">جاري تحميل ملخص الطلب...</pre>
+
+    <div class="actions">
+      <form id="confirmForm" method="post" action="" style="display:inline-block;margin:0">
+        <button id="btn" type="submit">أوافق</button>
+      </form>
+      <span id="status"></span>
+    </div>
+  </div>
+
+  <script>
+    // This page can be used in two ways:
+    // 1. Hosted at /<key> where server will serve it and form action is already pointing to /<key>/confirm
+    // 2. Opened with query param preview=BASE64ENCODED_TEXT and optional actionUrl param to set the form action
+    function decodeBase64Safely(s) {
+      try { return decodeURIComponent(escape(atob(s))); } catch(e) { try { return atob(s); } catch(e2) { return '';} }
+    }
+
+    function getParams() {
+      const q = location.search.substring(1);
+      const map = {};
+      q.split('&').forEach(part => { if(!part) return; const kv = part.split('='); map[decodeURIComponent(kv[0])] = kv[1] ? decodeURIComponent(kv[1]) : ''; });
+      return map;
+    }
+
+    (function init(){
+      const params = getParams();
+      const previewParam = params.preview;
+      const actionUrl = params.actionUrl || null;
+      const customerName = params.name || '';
+      const customerMetaEl = document.getElementById('customerMeta');
+      const previewEl = document.getElementById('orderPreview');
+      const confirmForm = document.getElementById('confirmForm');
+      const statusEl = document.getElementById('status');
+
+      if (actionUrl) {
+        try { confirmForm.action = actionUrl; } catch(e) {}
+      } else {
+        // If no action provided, default to posting back to current path + '/confirm'
+        try { confirmForm.action = location.pathname + '/confirm'; } catch(e) {}
+      }
+
+      if (customerName) {
+        customerMetaEl.textContent = 'اسم العميل: ' + customerName;
+        customerMetaEl.style.display = '';
+      }
+
+      if (previewParam) {
+        // preview is expected to be base64 encoded
+        const decoded = decodeBase64Safely(previewParam);
+        previewEl.textContent = decoded || '—';
+      } else {
+        // no preview param: attempt to fetch preview from a JSON endpoint next to this path
+        // e.g., GET {location.pathname}?_preview=1 could be implemented server-side
+        previewEl.textContent = 'لا توجد معاينة متاحة.';
+      }
+
+      // On form submit feedback
+      confirmForm.addEventListener('submit', function(e){ const btn = document.getElementById('btn'); btn.disabled = true; btn.textContent = 'جاري الإرسال...'; statusEl.textContent = ''; });
+
+    })();
+  </script>
+</body>
+</html>

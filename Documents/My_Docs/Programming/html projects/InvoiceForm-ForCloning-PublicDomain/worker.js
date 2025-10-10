@@ -40,6 +40,62 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type'
 };
+
+// Embedded confirmation page template. Worker will replace placeholders:
+// {{CUSTOMER_NAME}}, {{PREVIEW}}, {{ACTION}}, {{CONFIRMED_FLAG}}
+const CONFIRM_PAGE_TEMPLATE = `<!doctype html>
+<html lang="ar">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>تأكيد الطلب</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{--primary:#0b78d1;--muted:#666}
+    html,body{height:100%;margin:0;font-family:'Cairo',sans-serif;background:#fff;color:#222}
+    .wrap{max-width:820px;margin:22px auto;padding:20px}
+    #confirmLogo{max-width:220px;display:block;margin:0 auto 14px}
+    h2{color:var(--primary);text-align:center;margin:8px 0 14px}
+    p.lead{color:var(--muted);text-align:center;margin:0 0 18px}
+    .meta{color:var(--primary);font-weight:700;text-align:right;margin-bottom:10px}
+    pre#orderPreview{background:#f6f9fa;padding:18px;border-radius:12px;white-space:pre-wrap;border:1px solid #eef6f8;font-size:1.06rem;line-height:1.6;color:#16394a}
+    .actions{margin-top:18px;display:flex;gap:12px;justify-content:flex-end;align-items:center}
+    #btn{padding:12px 20px;border-radius:10px;border:0;background:linear-gradient(90deg,var(--primary),#0a9bd6);color:#fff;cursor:pointer;min-width:180px;box-shadow:0 8px 20px rgba(11,120,209,0.12);font-weight:700}
+    #btn[disabled]{opacity:0.6;cursor:default}
+    #status{color:var(--muted);margin-inline-start:12px}
+    .brand-note{color:#0a9bd6;font-weight:700;text-align:center;margin-top:10px}
+    @media (max-width:520px){.actions{flex-direction:column;align-items:stretch}#btn{width:100%;min-width:0}}
+  </style>
+</head>
+<body dir="rtl">
+  <div class="wrap">
+    <img id="confirmLogo" src="https://i.ibb.co/vxdH8xQ2/Landscape-Dark-Cyan.png" alt="Logo">
+    <h2>مراجعة الطلب وتأكيده</h2>
+    <p class="lead">راجع ملخص الطلب أدناه ثم اضغط "أوافق" لتأكيد وإرساله.</p>
+    <div id="customerMeta" class="meta">{{CUSTOMER_NAME}}</div>
+    <h3 class="product-header">ملخص الطلب</h3>
+    <pre id="orderPreview">{{PREVIEW}}</pre>
+    <div class="actions">
+      <form id="confirmForm" method="post" action="{{ACTION}}" style="display:inline-block;margin:0">
+        <button id="btn" type="submit">أوافق وأرسل</button>
+      </form>
+      <span id="status">{{CONFIRMED_FLAG}}</span>
+    </div>
+    <div class="brand-note">شكراً لاختياركم خدماتنا — فريق الدعم جاهز للمساعدة</div>
+  </div>
+  <script>
+    (function(){
+      // Simple UX: disable button on submit, show status
+      const form = document.getElementById('confirmForm');
+      const btn = document.getElementById('btn');
+      const status = document.getElementById('status');
+      form.addEventListener('submit', function(e){
+        try { btn.disabled = true; btn.textContent = 'جاري الإرسال...'; status.textContent = ''; } catch(e){}
+      });
+    })();
+  </script>
+</body>
+</html>`;
 // Try to load a local `secrets.js` module (generated from .env) as a fallback.
 // This allows using a build-time injected file when you can't or don't want
 // to use Wrangler secrets. The generator script below creates `secrets.js`.
@@ -402,55 +458,16 @@ export default {
   // build confirm action URL for the form
   const confirmAction = `${url.pathname}/confirm`;
 
-  const html = `<!doctype html>
-  <html lang="ar">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>تأكيد الطلب</title>
-    <!-- Use Cairo font and tidy, project-aligned colors -->
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <style>
-      :root{--primary:#1282a2;--secondary:#e0ae4c;--muted:#666}
-      html,body{height:100%;margin:0;font-family:'Cairo',sans-serif;background:#fff;color:#222}
-      .wrap{max-width:720px;margin:22px auto;padding:20px}
-      #confirmLogo{max-width:220px;display:block;margin:0 auto 14px}
-      h2{color:var(--primary);text-align:center;margin:8px 0 14px}
-      p.lead{color:var(--muted);text-align:center;margin:0 0 18px}
-      .meta{color:var(--primary);font-weight:700;text-align:right;margin-bottom:10px}
-      pre#orderPreview{background:#f6f9fa;padding:16px;border-radius:12px;white-space:pre-wrap;border:1px solid #eef6f8;font-size:1.06rem;line-height:1.5;color:#16394a}
-      .order-key{color:var(--primary);font-weight:800;margin-right:6px}
-      .order-value{color:#0b4b5a;font-weight:600}
-      .product-header{font-weight:800;color:var(--primary);margin:8px 0;padding-bottom:6px;border-bottom:1px solid #eee}
-      .actions{margin-top:14px;display:flex;gap:12px;justify-content:flex-end;align-items:center}
-      /* Use primary brand color for button (solid) */
-      #btn{padding:12px 20px;border-radius:10px;border:0;background:var(--primary);color:#fff;cursor:pointer;min-width:160px;box-shadow:0 6px 18px rgba(18,130,162,0.14)}
-      #btn[disabled]{opacity:0.6;cursor:default}
-      #btnCancel{padding:10px 14px;border-radius:8px;border:1px solid #ddd;background:#f7f7f7;color:#333}
-      #status{color:var(--muted);margin-inline-start:12px}
-      @media (max-width:520px){.actions{flex-direction:column;align-items:stretch}#btn{width:100%;min-width:0}}
-    </style>
-  </head>
-  <body dir="rtl" data-confirmed="${alreadyFlag}">
-    <div class="wrap">
-      <img id="confirmLogo" src="https://i.ibb.co/vxdH8xQ2/Landscape-Dark-Cyan.png" alt="Logo">
-      <h2>مراجعة وتأكيد الطلب</h2>
-      <p class="lead">يرجى مراجعة ملخص الطلب أدناه ثم اضغط "أوافق" لتأكيد وإرسال الطلب.</p>
-      ${safeCustomerName ? `<div class="meta">اسم العميل: ${safeCustomerName}</div>` : ''}
-      <h3 class="product-header">ملخص الطلب</h3>
-      <pre id="orderPreview">${pretty}</pre>
-      <div class="actions">
-        <form id="confirmForm" method="post" action="${confirmAction}" style="display:inline-block;margin:0" onsubmit="(function(){const b=this.querySelector('#btn'); if(b){ b.disabled=true; b.textContent='جاري الإرسال...'; }})()"> 
-          <button id="btn" type="submit">أوافق</button>
-        </form>
-        <button id="btnCancel" onclick="location.reload();">إلغاء</button>
-        <span id="status"></span>
-      </div>
-    </div>
-    <!-- Inline scripts removed to avoid parsing/encoding issues; form has an onsubmit handler for basic UX -->
-  </body>
-  </html>`;
-        return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Access-Control-Allow-Origin': '*' } });
+  // Use the embedded template and replace placeholders
+  let page = CONFIRM_PAGE_TEMPLATE;
+  const safePretty = String(pretty);
+  const customerLine = safeCustomerName ? `اسم العميل: ${safeCustomerName}` : '';
+  const confirmedText = entry.confirmed ? 'تم التأكيد سابقاً. شكراً.' : '';
+  page = page.replace('{{CUSTOMER_NAME}}', customerLine);
+  page = page.replace('{{PREVIEW}}', safePretty);
+  page = page.replace('{{ACTION}}', confirmAction);
+  page = page.replace('{{CONFIRMED_FLAG}}', confirmedText);
+  return new Response(page, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Access-Control-Allow-Origin': '*' } });
       }
     }
 
