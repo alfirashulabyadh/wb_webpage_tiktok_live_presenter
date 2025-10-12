@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تأكيد الطلب</title>
+    <!-- Cairo font -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root{
+            --cyan:#00b7d9;
+            --dark-cyan:#008fa6;
+            --accent:#ffd54a; /* yellow */
+            --bg:#ffffff;
+            --muted:#6b7280;
+            --card-shadow: 0 6px 18px rgba(0,0,0,0.08);
+        }
+        *{box-sizing:border-box}
+        html,body{height:100%}
+        body{
+            margin:0;
+            font-family: 'Cairo', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+            background:linear-gradient(180deg, #f7feff 0%, #ffffff 40%);
+            color:#042a2b;
+            -webkit-font-smoothing:antialiased;
+            -moz-osx-font-smoothing:grayscale;
+            padding:20px;
+        }
+        .container{
+            max-width:820px;
+            margin:0 auto;
+            background:var(--bg);
+            border-radius:14px;
+            box-shadow:var(--card-shadow);
+            overflow:hidden;
+            border:1px solid rgba(1,1,1,0.04);
+        }
+        header{
+            background:linear-gradient(90deg,var(--cyan),var(--dark-cyan));
+            color:white;
+            padding:18px 20px;
+            display:flex;
+            align-items:center;
+            gap:12px;
+        }
+        header img{height:48px; width:auto; border-radius:8px; box-shadow:0 4px 10px rgba(0,0,0,0.12)}
+        header .title{
+            font-size:1.25rem;
+            font-weight:700;
+            letter-spacing:0.2px;
+        }
+        header .subtitle{font-size:0.9rem; opacity:0.95}
+
+        main{padding:20px}
+        .section{margin-bottom:18px}
+        .section h2{
+            margin:0 0 10px 0;
+            font-size:1rem;
+            color:var(--dark-cyan);
+        }
+        .products{display:flex;flex-direction:column;gap:12px}
+        .product{
+            display:flex;align-items:center;justify-content:space-between;
+            padding:12px;border-radius:10px;background:linear-gradient(180deg,#ffffff,#f6ffff);
+            box-shadow:0 4px 12px rgba(0,183,217,0.06);
+            border:1px solid rgba(0,183,217,0.07)
+        }
+        .p-left{display:flex;gap:12px;align-items:center}
+        .p-badge{background:var(--accent);color:#042a2b;padding:6px 8px;border-radius:8px;font-weight:700}
+        .p-meta{font-size:0.95rem}
+        .muted{color:var(--muted);font-size:0.86rem}
+        .price{font-weight:800;color:var(--dark-cyan);font-size:1rem}
+
+        .grid{display:grid;grid-template-columns:1fr 140px;gap:14px;align-items:center}
+        .info-card{padding:12px;border-radius:10px;background:#fffefc;border:1px solid rgba(0,0,0,0.03)}
+
+        .summary{
+            display:flex;align-items:center;justify-content:space-between;padding:14px;border-radius:12px;background:linear-gradient(90deg,rgba(0,183,217,0.06),rgba(255,213,74,0.06));border:1px solid rgba(0,183,217,0.06)
+        }
+        .total{font-weight:900;font-size:1.2rem;color:#052b2c}
+        .deliver{
+            display:flex;flex-direction:column;gap:6px;text-align:left
+        }
+
+        .customer{display:flex;flex-direction:column;gap:8px}
+        .customer .row{display:flex;justify-content:space-between;gap:12px}
+
+        footer{padding:16px 20px;background:linear-gradient(180deg,#f8ffff,#ffffff);display:flex;justify-content:space-between;align-items:center;gap:12px}
+        .btn{
+            background:linear-gradient(90deg,var(--cyan),var(--dark-cyan));
+            color:white;padding:12px 20px;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:1rem;
+            box-shadow:0 8px 18px rgba(0,143,166,0.14);transition:transform .14s ease, box-shadow .14s ease;direction:rtl
+        }
+        .btn:active{transform:translateY(1px)}
+        .btn.secondary{background:transparent;color:var(--dark-cyan);border:1px solid rgba(1,1,1,0.06)}
+
+        .meta-small{font-size:0.86rem;color:var(--muted)}
+
+        /* responsive */
+        @media (max-width:640px){
+            .grid{grid-template-columns:1fr}
+            header{flex-direction:column;align-items:flex-end}
+            header img{height:44px}
+            .container{border-radius:12px}
+            .product{flex-direction:column;align-items:flex-end;text-align:right}
+            footer{flex-direction:column;align-items:stretch}
+        }
+    </style>
+</head>
+<body>
+    <div class="container" role="document">
+        <header>
+            <div style="margin-left:auto">
+                <img src="https://i.ibb.co/vxdH8xQ2/Landscape-Dark-Cyan.png" alt="brand logo">
+            </div>
+            <div style="text-align:right">
+                <div class="title">تأكيد الطلب</div>
+                <div class="subtitle">تفاصيل الطلب ورقم الفاتورة (مثال)</div>
+            </div>
+        </header>
+
+        <main>
+            <section class="section">
+                <h2>تفاصيل المنتجات</h2>
+                <div class="products">
+                    <article class="product" aria-label="المنتج الأول">
+                        <div class="p-left">
+                            <div class="p-badge">المنتج ١</div>
+                            <div class="p-meta">
+                                <div style="font-weight:700">فوليوم</div>
+                                <div class="muted">القياس: 200 × 180 × 23</div>
+                                <div class="muted">وزن الأشخاص: 60 – 80 كغ</div>
+                                <div class="muted">الضمان: 5 سنوات</div>
+                            </div>
+                        </div>
+                        <div style="text-align:left">
+                            <div class="price">٣١٠٬٠٠٠ د.ع</div>
+                            <div class="meta-small">العدد: 1</div>
+                        </div>
+                    </article>
+
+                    <article class="product" aria-label="المنتج الثاني">
+                        <div class="p-left">
+                            <div class="p-badge" style="background:var(--cyan);color:white">الوسادة</div>
+                            <div class="p-meta">
+                                <div style="font-weight:700">الوسادة الفندقية</div>
+                                <div class="muted">الوزن: 1300 جرام</div>
+                            </div>
+                        </div>
+                        <div style="text-align:left">
+                            <div class="price">٢٥٬٠٠٠ د.ع</div>
+                            <div class="meta-small">العدد: 1</div>
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <section class="section grid">
+                <div class="info-card">
+                    <h2>معلومات الزبون</h2>
+                    <div class="customer">
+                        <div class="row"><div>الاسم:</div><div><strong>Muhannad Yasir</strong></div></div>
+                        <div class="row"><div>الرقم:</div><div><a href="tel:+9647882979710">+964 788 297 9710</a></div></div>
+                        <div class="row"><div>العنوان:</div><div>بغداد، الزهور</div></div>
+                        <div class="row"><div>فئة الزبون:</div><div class="muted">جديد لعائلة الفراش الأبيض</div></div>
+                        <div class="row"><div>الدافع:</div><div class="muted">—</div></div>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <h2>التوصيل</h2>
+                    <div class="muted">كلفة التوصيل</div>
+                    <div style="font-weight:800;font-size:1.05rem;margin-top:6px">١٠٬٠٠٠ د.ع</div>
+                    <div class="muted" style="margin-top:10px">مدة التوصيل</div>
+                    <div style="font-weight:700;margin-top:6px">5 أيام</div>
+                    <div class="muted" style="margin-top:10px">منصة الحجز</div>
+                    <div>فيسبوك</div>
+                    <div class="muted" style="margin-top:10px">موظف المبيعات</div>
+                    <div>Mohammed Ali</div>
+                </div>
+            </section>
+
+            <section class="section">
+                <div class="summary" aria-hidden="false">
+                    <div>
+                        <div class="muted">المجموع</div>
+                        <div class="total">٣٤٥٬٠٠٠ د.ع</div>
+                    </div>
+                    <div class="deliver">
+                        <div class="muted">حالة الطلب</div>
+                        <div style="font-weight:700;color:var(--dark-cyan)">قيد المعالجة</div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <div class="meta-small">رقم الفاتورة: <strong>#000123</strong></div>
+            <div style="margin-left:auto;display:flex;gap:10px">
+                <button class="btn" aria-label="موافق">موافق</button>
+            </div>
+        </footer>
+    </div>
+
+</body>
+</html>

@@ -2162,12 +2162,38 @@ window.onclick = function(event) {
                 if (prod.description && prod.description.trim()) {
                     str += `${prod.description.trim()}\n`;
                 }
+                // compute per-product prices for before/after-offer display
+                const qty = parseNumber(prod.qty || 1);
+                const unitPrice = parseNumber(prod.price || 0);
+                const productPreOffer = unitPrice * qty;
+                let productPostOffer = productPreOffer;
+                let productOfferText = null; // will contain the Arabic offer description for this product
+                if (prod.specialOffer) {
+                    if (prod.offerType === 'percent' && prod.offerPercent) {
+                        productPostOffer = Math.round(productPreOffer * (1 - (parseFloat(prod.offerPercent) || 0)/100));
+                        productOfferText = `خصم بقيمة ${prod.offerPercent}%`;
+                    } else if (prod.offerType === 'fixed' && prod.offerFixed) {
+                        // treat fixed as amount off the product total (not per unit)
+                        const fixedAmt = parseNumber(prod.offerFixed) || 0;
+                        productPostOffer = Math.max(0, productPreOffer - fixedAmt);
+                        productOfferText = `خصم بقيمة ${formatNumber(fixedAmt)}`;
+                    } else if (prod.offerType === 'gift') {
+                        productPostOffer = 0;
+                        productOfferText = `هدية`;
+                    }
+                }
                 if (prod.type === "فراش") {
                     // str = str.slice(0, -1);
                     // str += ' '
                     // str += `${prod.mattressType}\n`;
                     str += `القياس: ${prod.length||''} × ${prod.width||''} × ${prod.height||''}\n`;
                     str += `السعر: ${formatNumber(prod.price)}\n`;
+                    // If this product has a special offer, append offer text and before/after prices
+                    if (productOfferText) {
+                        str += `${productOfferText}\n`;
+                        str += `السعر قبل العرض: ${formatNumber(productPreOffer)}\n`;
+                        str += `السعر بعد العرض: ${formatNumber(productPostOffer)}\n`;
+                    }
                     str += `وزن الأشخاص: ${prod.personWeight||''}\n`;
                     str += `الضمان: ${prod.warranty||''}\n`;
                     str += `العدد: ${prod.qty||1}\n\n`;
@@ -2176,25 +2202,45 @@ window.onclick = function(event) {
                     // str += `${prod.pillowType}\n`;
                     if (prod.weight) str += `الوزن: ${prod.weight}\n`;
                     str += `السعر: ${formatNumber(prod.price)}\n`;
+                    if (productOfferText) {
+                        str += `${productOfferText}\n`;
+                        str += `السعر قبل العرض: ${formatNumber(productPreOffer)}\n`;
+                        str += `السعر بعد العرض: ${formatNumber(productPostOffer)}\n`;
+                    }
                     str += `العدد: ${prod.qty||1}\n\n`;
                 } else if (prod.type === "واتربروف") {
                     str += `القياس: ${prod.length||''} × ${prod.width||''}\n`;
                     str += `السعر: ${formatNumber(prod.price)}\n`;
+                    if (productOfferText) {
+                        str += `${productOfferText}\n`;
+                        str += `السعر قبل العرض: ${formatNumber(productPreOffer)}\n`;
+                        str += `السعر بعد العرض: ${formatNumber(productPostOffer)}\n`;
+                    }
                     str += `العدد: ${prod.qty||1}\n\n`;
                 } else if (prod.type === "لحاف") {
                     str += `القياس: ${prod.length||''} × ${prod.width||''}\n`;
                     str += `السعر: ${formatNumber(prod.price)}\n`;
+                    if (productOfferText) {
+                        str += `${productOfferText}\n`;
+                        str += `السعر قبل العرض: ${formatNumber(productPreOffer)}\n`;
+                        str += `السعر بعد العرض: ${formatNumber(productPostOffer)}\n`;
+                    }
                     str += `العدد: ${prod.qty||1}\n\n`;
                 } else {
                     str += `السعر: ${formatNumber(prod.price)}\n`;
+                    if (productOfferText) {
+                        str += `${productOfferText}\n`;
+                        str += `السعر قبل العرض: ${formatNumber(productPreOffer)}\n`;
+                        str += `السعر بعد العرض: ${formatNumber(productPostOffer)}\n`;
+                    }
                     str += `العدد: ${prod.qty||1}\n\n`;
                 }
             });
             // خصم
             if (discountType === 'fixed') {
-                str += `الخصم: بقيمة ${formatNumber(discountValue)}\n`;
+                str += `الخصم الكلي: بقيمة ${formatNumber(discountValue)}\n`;
             } else if (discountType === 'percent') {
-                str += `الخصم: مئوي بقيمة ${discountValue}%\n`;
+                str += `الخصم الكلي: مئوي بقيمة ${discountValue}%\n`;
             }
             // } else {
             //     str += `الخصم: لا يوجد\n`;

@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>تفاصيل الطلب — WhiteBedding</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body { font-family: Inter, "Noto Naskh Arabic", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
+      .card { background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); }
+      @media print {
+        .no-print { display:none !important; }
+      }
+    </style>
+  </head>
+  <body class="bg-slate-50 p-6">
+    <main class="max-w-4xl mx-auto">
+      <header class="flex items-center justify-between mb-6">
+        <div>
+          <h1 class="text-2xl font-semibold">فاتورة طلبية</h1>
+          <p class="text-sm text-slate-600">WhiteBedding — سجل الطلب وبيانات الزبون</p>
+        </div>
+        <div class="text-right">
+          <button onclick="window.print()" class="no-print inline-block px-4 py-2 bg-sky-600 text-white rounded shadow">طباعة الفاتورة</button>
+        </div>
+      </header>
+
+      <section class="mb-6 bg-white shadow rounded-lg p-4 border border-sky-100">
+        <h2 class="text-lg font-medium mb-2 text-sky-700">مرحبًا بك في عائلة الفراش الأبيض!</h2>
+        <p class="text-slate-600 text-sm leading-relaxed">نشكرك على اختيارك منتجاتنا ونتمنى لك تجربة مريحة ومميزة. يسعدنا انضمامك لعائلتنا، ونعدك دائمًا بالجودة والراحة.</p>
+      </section>
+
+      <section class="card shadow rounded-lg p-6 mb-6">
+        <h2 class="text-lg font-medium mb-3">محتوى الطلب</h2>
+
+        <div class="space-y-4">
+          <div class="border border-slate-200 rounded p-4">
+            <div class="flex justify-between items-start">
+              <div>
+                <h3 class="font-semibold">المنتج: فوليوم</h3>
+                <p class="text-sm text-slate-600">القياس: 200 × 180 × 23 سم</p>
+                <p class="text-sm text-slate-600">سعة وزن المستخدمين: 60–80 كغ</p>
+                <p class="text-sm text-slate-600">فترة الضمان: 5 سنوات</p>
+                <p class="text-sm text-slate-600">الكمية: 1</p>
+              </div>
+              <div class="text-left">
+                <p class="text-xl font-semibold">310,000</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="border border-slate-200 rounded p-4">
+            <div class="flex justify-between items-start">
+              <div>
+                <h3 class="font-semibold">المنتج: الوسادة الفندقية</h3>
+                <p class="text-sm text-slate-600">الوزن: 1300 غ</p>
+                <p class="text-sm text-slate-600">الكمية: 1</p>
+              </div>
+              <div class="text-left">
+                <p class="text-xl font-semibold">25,000</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="border border-slate-200 rounded p-4 flex justify-between items-center">
+            <div>
+              <p class="text-sm text-slate-600">تكلفة التوصيل</p>
+              <p class="text-sm text-slate-600">مدة التوصيل: 5 أيام</p>
+            </div>
+            <div class="text-left">
+              <p class="text-lg font-medium">10,000</p>
+            </div>
+          </div>
+
+          <div class="bg-sky-50 border border-sky-100 rounded p-4 flex justify-between items-center">
+            <div>
+              <p class="text-sm text-slate-700">المجموع (شامل التوصيل)</p>
+            </div>
+            <div class="text-left">
+              <p class="text-2xl font-bold">345,000</p>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <section class="shadow rounded-lg p-6 bg-white mb-6">
+        <h2 class="text-lg font-medium mb-3">بيانات الزبون</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <p class="text-sm text-slate-600">الاسم</p>
+            <p class="font-medium">Muhannad Yasir</p>
+          </div>
+          <div>
+            <p class="text-sm text-slate-600">الهاتف</p>
+            <p class="font-medium">+964 788 297 9710</p>
+          </div>
+          <div>
+            <p class="text-sm text-slate-600">العنوان</p>
+            <p class="font-medium">بغداد، الزهور</p>
+          </div>
+          <div>
+            <p class="text-sm text-slate-600">فئة الزبون</p>
+            <p class="font-medium">زبون جديد لدى عائلة الفراش الأبيض</p>
+          </div>
+          <div>
+            <p class="text-sm text-slate-600">قناة الحجز</p>
+            <p class="font-medium">فيسبوك</p>
+          </div>
+          <div>
+            <p class="text-sm text-slate-600">موظف المبيعات</p>
+            <p class="font-medium">Mohammed Ali</p>
+          </div>
+        </div>
+      </section>
+
+      <footer class="text-sm text-slate-500 text-center py-6 border-t border-slate-200">
+        <p>الفراش الأبيض — الراحة تبدأ من هنا</p>
+        <p class="mt-2">هذه صفحة نموذجية تم توليدها لتجربة تصميم واجهة وطباعة فاتورة. يمكنك تعديل النص والأرقام بسهولة في الملف.</p>
+      </footer>
+
+    </main>
+  </body>
+</html>
