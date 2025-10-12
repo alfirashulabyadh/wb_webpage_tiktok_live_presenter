@@ -2272,6 +2272,22 @@ window.onclick = function(event) {
                 str += `✅ المجموع بعد الخصم: ${formatNumber(total)}\n\n`;
             }
             else {str += `🧾 المجموع: ${formatNumber(total)}\n\n`;}
+
+            // If a prepaid/received amount exists, include prepaid and remaining in the order string
+            try {
+                const receivedVal = (typeof receivedAmountInput !== 'undefined' && receivedAmountInput) ? parseNumber(receivedAmountInput.value) : 0;
+                if (receivedVal && receivedVal > 0) {
+                    const remainingVal = Math.max(0, (parseFloat(total) || 0) - receivedVal);
+                    str += `المبلغ المدفوع: ${formatNumber(receivedVal)} د.ع\n`;
+                    if (remainingVal <= 0) {
+                        str += `المبلغ المتبقي: مدفوع بالكامل ✅\n\n`;
+                    } else {
+                        str += `المبلغ المتبقي: ${formatNumber(remainingVal)} د.ع\n\n`;
+                    }
+                }
+            } catch (e) {
+                // ignore errors reading received inputs
+            }
             
             str += `📌 معلومات الزبون:\n`;
             str += `الاسم: ${customer.name}\n`;
