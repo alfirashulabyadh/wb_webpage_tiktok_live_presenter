@@ -53,11 +53,18 @@ async function handleRequest(request, event){
 
   // send text first
   try{
-    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,{
+    const resp = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,{
       method:'POST',
       headers:{'content-type':'application/json'},
       body: JSON.stringify({chat_id: CHAT_ID, text: lines.join('\n')})
     });
+    // Attempt to parse Telegram response for debugging and error handling
+    let j;
+    try{ j = await resp.json() }catch(e){ j = null }
+    if(!resp.ok || (j && j.ok === false)){
+      console.error('Telegram sendMessage failed', {status: resp.status, statusText: resp.statusText, body: j});
+      return new Response(JSON.stringify({error:'failed to send message to telegram','detail': j || resp.statusText}),{status:502,headers:{'content-type':'application/json'}})
+    }
   }catch(err){
     return new Response(JSON.stringify({error:'failed to send message to telegram','detail':err.message}),{status:502,headers:{'content-type':'application/json'}})
   }
@@ -85,7 +92,13 @@ async function handleRequest(request, event){
         method:'POST',
         body: fd
       });
-      return resp.ok ? {ok:true} : {ok:false, status: resp.status};
+      let j;
+      try{ j = await resp.json() }catch(e){ j = null }
+      if(!resp.ok || (j && j.ok === false)){
+        console.error('Telegram sendFile failed', {type, status: resp.status, statusText: resp.statusText, body: j});
+        return {ok:false, status: resp.status, error: j || resp.statusText};
+      }
+      return {ok:true};
     }catch(err){
       return {ok:false, error: err.message};
     }
