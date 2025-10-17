@@ -7,14 +7,18 @@ addEventListener('fetch', event => {
  * BOT_TOKEN (secret) and CHAT_ID (secret or binding)
  * When deploying with Wrangler, bind them under [vars] or as secrets.
  */
+// Note: this script uses the service-worker runtime style (addEventListener('fetch', ...)).
+// In that mode Wrangler injects `vars`/`secrets` as global bindings. Access them via
+// `globalThis.BOT_TOKEN` and `globalThis.CHAT_ID` (or directly as globals).
+
 async function handleRequest(request, event){
   if(request.method !== 'POST'){
     return new Response('Not found', {status:404})
   }
 
   // Read from global bindings (Wrangler will inject BOT_TOKEN and CHAT_ID)
-  const BOT_TOKEN = typeof BOT_TOKEN !== 'undefined' ? BOT_TOKEN : '';
-  const CHAT_ID = typeof CHAT_ID !== 'undefined' ? CHAT_ID : '';
+  const BOT_TOKEN = typeof globalThis.BOT_TOKEN !== 'undefined' ? globalThis.BOT_TOKEN : '';
+  const CHAT_ID = typeof globalThis.CHAT_ID !== 'undefined' ? globalThis.CHAT_ID : '';
 
   if(!BOT_TOKEN || !CHAT_ID){
     return new Response(JSON.stringify({error:'server misconfigured - BOT_TOKEN or CHAT_ID missing'}),{status:500,headers:{'content-type':'application/json'}})
