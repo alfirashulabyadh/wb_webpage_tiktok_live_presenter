@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>وظيفة – مقدم/ مقدمة بث مباشر على التيك توك</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="container">
+      <header class="hero">
+        <h1>وظيفة – مقدم/ مقدمة بث مباشر على التيك توك</h1>
+      </header>
+
+      <section class="intro">
+        <div class="intro-text">
+          <p class="lead">شخصيتك محبوبة، وحضورك مميز؟ تكدر تستعمل أسلوبك في تشويق الناس؟
+ويانا ممكن تصير صاحب الصوت المميز للفراش الأبيض على منصة التيك توك، وتحجي للزبائن قصتنا اللي ما تنتهي عن منتجات النوم 🥰🤍</p>
+
+          <ul class="meta">
+            <li><strong>الوظيفة متاحة لكلا الجنسين</strong></li>
+            <li>الراتب: <strong>600 ألف دينار</strong></li>
+            <li>مدة الدوام: من الساعة 01:00 ظهراً، ولغاية 11:00 مساءً</li>
+            <li>موقع الدوام في أحد الفرعين: <br>المنصور – شارع الرواد، مقابل مول المنصور، أو<br>القاهرة – مقابل جامع غفار الذنوب</li>
+          </ul>
+        </div>
+
+        <div class="intro-image">
+          <img src="https://i.ibb.co/0jKMFLc8/Tik-Tok-Webpage-Photo-compressed.jpg" alt="TikTok presenter"/>
+        </div>
+      </section>
+
+      <section class="requirements">
+        <h2>المتطلبات والمهام:</h2>
+        <div class="requirements-text">
+          <pre>-	حسن الأسلوب والثقة العالية في الحديث
+- 	القدرة على إتقان النبرة الإيجابية والاحترافية والودودة
+- 	تحفيز المشاهدين على التفاعل واتخاذ الإجراء (الشراء أو المتابعة)
+- 	القدرة على الحديث والتقديم لمدد طويلة – كل بث يدوم 4 ساعات تقريباً في أوقات مختلفة طوال الدوام
+- 	الالتزام في مواعيد العمل
+- 	الظهور على الكاميرا أمر اختياري ومستحسن
+- 	خبرة سابقة في البث أو المبيعات أمر اختياري ومستحسن</pre>
+        </div>
+      </section>
+
+      <div class="cta">
+        <button id="start-apply" class="btn-primary">متابعة التقديم</button>
+      </div>
+
+      <form id="application-form" class="hidden" enctype="multipart/form-data" novalidate>
+        <section class="form-section">
+          <h3>معلومات المتقدّم:</h3>
+          <p class="note">الرجاء ملء الحقول المطلوبة *</p>
+
+          <label>الاسم *
+            <input type="text" name="name" required>
+            <span class="error">هذا الحقل مطلوب</span>
+          </label>
+
+          <label>الهاتف *
+            <input type="tel" name="phone" required>
+            <span class="error">هذا الحقل مطلوب</span>
+          </label>
+
+          <label>البريد الإلكتروني (اختياري)
+            <input type="email" name="email">
+          </label>
+
+          <label>تاريخ الميلاد *
+            <input type="date" name="birth" required>
+            <span class="error">هذا الحقل مطلوب</span>
+          </label>
+
+          <label>العنوان *
+            <input type="text" name="address" required>
+            <span class="error">هذا الحقل مطلوب</span>
+          </label>
+
+          <label>في أيّ فرع تودّ العمل؟ *
+            <select name="branch" required>
+              <option value="">اختر</option>
+              <option value="almansour">المنصور</option>
+              <option value="cairo">القاهرة</option>
+            </select>
+            <span class="error">هذا الحقل مطلوب</span>
+          </label>
+        </section>
+
+        <section class="form-section">
+          <h3>أسئلة التقييم</h3>
+          <label>هل تودّ الظهور على الكاميرا؟ *
+            <div class="radio-row">
+              <label><input type="radio" name="camera" value="yes" required> نعم</label>
+              <label><input type="radio" name="camera" value="no" required> كلا</label>
+            </div>
+            <span class="error">هذا الحقل مطلوب</span>
+          </label>
+
+          <label>صف لنا شغفك في تقديم البث *
+            <textarea name="passion" required></textarea>
+            <span class="error">هذا الحقل مطلوب</span>
+          </label>
+
+          <label>لماذا تريد العمل لدى الفراش الأبيض *
+            <textarea name="why" required></textarea>
+            <span class="error">هذا الحقل مطلوب</span>
+          </label>
+
+          <label>صف لنا خبراتك السابقة ذات الصلة في المبيعات أو البث (اختياري)
+            <textarea name="experience"></textarea>
+          </label>
+
+          <label>تسجيل صوتي (قصير، حتى 5 دقائق) – الحد الأقصى 20 م.ب.
+            <input type="file" name="audio" accept="audio/*">
+            <span class="upload-info"></span>
+          </label>
+
+          <label>صورة شخصية – الحد الأقصى 5 م.ب.
+            <input type="file" name="photo" accept="image/*">
+            <span class="upload-info"></span>
+          </label>
+
+          <label>رابط إحدى صفحات التواصل (اختياري)
+            <input type="url" name="social">
+          </label>
+
+          <label>إذا كان لك سؤال أو ملاحظة (اختياري)
+            <textarea name="note"></textarea>
+          </label>
+
+          <label class="checkbox-inline">
+            <input type="checkbox" name="confirm" id="confirm"> قرأت وصف العمل، وأودّ تسليم استمارة التقديم
+          </label>
+
+          <div class="form-actions">
+            <div class="form-messages" aria-live="polite"></div>
+            <button type="submit" class="btn-primary">تسليم التقديم</button>
+          </div>
+        </section>
+      </form>
+
+      <footer class="footer">
+        <img src="https://i.ibb.co/R4VpNPfK/Landscape-Dark-Cyan-compressed.jpg" alt="logo" class="logo">
+      </footer>
+
+      <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+        <div class="modal-content">
+          <div class="modal-body">
+            <div class="loader" id="modal-loader" aria-hidden="true"></div>
+            <div class="success" id="modal-success" aria-hidden="true"> 
+              <h2>شكراً، تم تسليم ملف التقديم!</h2>
+              <p>سوف نتواصل معك في حال جرى اختيارك ✨</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>

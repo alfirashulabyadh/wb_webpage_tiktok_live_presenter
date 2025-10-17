@@ -1,0 +1,18 @@
+name = "tiktok-live-presenter-worker"
+main = "worker.js"
+compatibility_date = "2025-10-16"
+
+[env.production]
+name = "tiktok-live-presenter-worker-prod"
+
+[vars]
+# If you prefer to store tokens as plaintext in the toml (not recommended), set them here.
+BOT_TOKEN = "7570106320:AAGvXdpCCCBzQNp2_Z6sQKpcGQw2LAi03N4"
+CHAT_ID = "-4811555462"
+
+# To bind secrets use: wrangler secret put BOT_TOKEN
+# and wrangler secret put CHAT_ID
+
+[[routes]]
+pattern = "jobs.whitebedding.net/tiktok_live_presenter/api/submit"
+zone_id = "<YOUR_ZONE_ID>"
