@@ -98,41 +98,82 @@
     // prepare form data
     const data = new FormData(form);
 
-    // send to backend (Cloudflare Worker) - endpoint path: /api/submit
-    const url = '/api/submit';
+    // Candidate endpoints to try (relative paths and absolute fallback).
+    // Adjust these if you change the Worker route in wrangler.toml.
+    const candidateUrls = [
+      '/tiktok_live_presenter/api/submit',
+      '/api/submit',
+      location.origin + '/tiktok_live_presenter/api/submit',
+      'https://jobs.whitebedding.net/tiktok_live_presenter/api/submit'
+    ];
 
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', url);
+    let tried = 0;
 
-    xhr.upload.onprogress = function(e){
-      if(e.lengthComputable){
-        const pct = Math.round((e.loaded/e.total)*100);
-        formMessages.textContent = `جارٍ رفع الملفات ${pct}%`;
+    function sendToUrl(idx){
+      if(idx >= candidateUrls.length){
+        modalLoader.style.display='none';
+        formMessages.textContent = 'فشل إرسال الطلب — لا يوجد مسار صالح. تحقق من إعدادات الخادم/الـ Worker.';
+        return;
       }
-    };
 
-    xhr.onload = function(){
-      modalLoader.style.display='none';
-      try{
-        const res = JSON.parse(xhr.responseText || '{}');
-        if(xhr.status>=200 && xhr.status<300 && res.ok){
-          modalSuccess.style.display='block';
-          form.reset();
-        }else{
-          const msg = (res && res.error) ? (res.error + (res.detail? (': '+res.detail) : '')) : 'حدث خطأ أثناء إرسال الطلب، حاول لاحقاً.';
-          formMessages.textContent = msg;
+      const tryUrl = candidateUrls[idx];
+      tried++;
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', tryUrl);
+
+      xhr.upload.onprogress = function(e){
+        if(e.lengthComputable){
+          const pct = Math.round((e.loaded/e.total)*100);
+          formMessages.textContent = `جارٍ رفع الملفات ${pct}%`;
         }
-      }catch(err){
-        formMessages.textContent = 'استجابة الخادم غير متوقعة.';
+      };
+
+      xhr.onload = function(){
+        modalLoader.style.display='none';
+        // If the endpoint responds 405 (Method Not Allowed) or another
+        // server-level routing error, try the next candidate.
+        if(xhr.status === 405 && idx < candidateUrls.length - 1){
+          // try next candidate
+          sendToUrl(idx + 1);
+          return;
+        }
+
+        try{
+          const res = JSON.parse(xhr.responseText || '{}');
+          if(xhr.status>=200 && xhr.status<300 && res.ok){
+            modalSuccess.style.display='block';
+            form.reset();
+            return;
+          }
+
+          // Non-2xx or worker-reported error — surface details for debugging
+          const serverMsg = (res && res.error) ? (res.error + (res.detail? (': '+res.detail) : '')) : null;
+          formMessages.textContent = serverMsg || `خطأ ${xhr.status} ${xhr.statusText}: ${xhr.responseText || 'لا توجد تفاصيل'}`;
+        }catch(err){
+          formMessages.textContent = 'استجابة الخادم غير متوقعة.';
+        }
+      };
+
+      xhr.onerror = function(){
+        modalLoader.style.display='none';
+        // network-level error — try next candidate once, otherwise show message
+        if(idx < candidateUrls.length - 1){
+          sendToUrl(idx + 1);
+        }else{
+          formMessages.textContent = 'فشل الاتصال بالخادم.';
+        }
+      };
+
+      try{
+        xhr.send(data);
+      }catch(e){
+        modalLoader.style.display='none';
+        formMessages.textContent = 'خطأ محلي أثناء محاولة الإرسال.';
       }
-    };
+    }
 
-    xhr.onerror = function(){
-      modalLoader.style.display='none';
-      formMessages.textContent = 'فشل الاتصال بالخادم.';
-    };
-
-    xhr.send(data);
+    // start with the first candidate
+    sendToUrl(0);
   });
 
 })();
