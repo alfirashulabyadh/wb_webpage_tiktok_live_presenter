@@ -53,6 +53,11 @@ async function handleRequest(request, event){
 
   // send text first
   try{
+    // Debug: surface whether secrets are present (masked) so we can debug 404 from Telegram
+    try{
+      const masked = BOT_TOKEN ? (BOT_TOKEN.slice(0,5) + '...' + BOT_TOKEN.slice(-5)) : 'MISSING';
+      console.log('BOT_TOKEN present:', !!BOT_TOKEN, 'len:', BOT_TOKEN ? BOT_TOKEN.length : 0, 'masked:', masked, 'CHAT_ID present:', !!CHAT_ID);
+    }catch(e){ console.log('debug log failed', e.message) }
     const resp = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,{
       method:'POST',
       headers:{'content-type':'application/json'},
