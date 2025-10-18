@@ -10,6 +10,8 @@
     startBtn.style.display='none';
     form.classList.remove('hidden');
     form.scrollIntoView({behavior:'smooth'});
+    // Pixel: track start/processing button
+    try{ if(typeof fbq === 'function') fbq('track', 'StartApplication_tiktok'); }catch(e){}
   });
 
   // enhance file inputs to show upload info and provide a clear (x) button
@@ -55,10 +57,7 @@
   const mb = Math.round((f.size/1024/1024)*10)/10;
   // show single phrase: "تم اختيار الملف – الحجم: <الحجم>"
   const sizeText = mb >= 1 ? `${mb} م.ب.` : `${kb} ك.ب.`;
-  nameSpan.textContent = `تم اختيار الملف – الحجم: ${sizeText}`;
-  sizeSpan.textContent = '';
-  // show clear button when a file is selected
-  clearBtn.style.display = '';
+    // We only set the displayed info and fire the pixel after validations succeed (below).
 
       const errSpan = document.createElement('div');
       errSpan.className = 'error-file';
@@ -106,6 +105,17 @@
           return;
         }
       }
+
+      // If we reach here, the file passed validation — show info and fire pixel
+      nameSpan.textContent = `تم اختيار الملف – الحجم: ${sizeText}`;
+      sizeSpan.textContent = '';
+      clearBtn.style.display = '';
+      try{
+        if(typeof fbq === 'function'){
+          if(input.name === 'audio') fbq('track', 'UploadAudio_tiktok');
+          if(input.name === 'photo') fbq('track', 'UploadPhoto_tiktok');
+        }
+      }catch(e){}
     });
   });
 
@@ -139,6 +149,9 @@
     modal.classList.remove('hidden');
     modalLoader.style.display='block';
     modalSuccess.style.display='none';
+
+  // Pixel: track submit (user passed client-side validation)
+  try{ if(typeof fbq === 'function') fbq('track', 'SubmitApplication_tiktok'); }catch(e){}
 
     // prepare form data
     const data = new FormData(form);
