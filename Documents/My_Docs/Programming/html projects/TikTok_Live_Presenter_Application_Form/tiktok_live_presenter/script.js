@@ -70,14 +70,19 @@
           errSpan.textContent = 'حجم الملف أكبر من 20 م.ب.';
           container.appendChild(errSpan);
           input.value = '';
-          info.innerHTML = '';
+          // keep the info elements in DOM so they can be reused on next selection
+          nameSpan.textContent = '';
+          sizeSpan.textContent = '';
+          clearBtn.style.display = 'none';
           return;
         }
         if(!f.type.startsWith('audio') && !/\.(mp3|wav|m4a|ogg)$/i.test(f.name)){
           errSpan.textContent = 'الرجاء رفع ملف صوتي فقط.';
           container.appendChild(errSpan);
           input.value = '';
-          info.innerHTML = '';
+          nameSpan.textContent = '';
+          sizeSpan.textContent = '';
+          clearBtn.style.display = 'none';
           return;
         }
       }
@@ -86,14 +91,18 @@
           errSpan.textContent = 'حجم الصورة أكبر من 7 م.ب.';
           container.appendChild(errSpan);
           input.value = '';
-          info.innerHTML = '';
+          nameSpan.textContent = '';
+          sizeSpan.textContent = '';
+          clearBtn.style.display = 'none';
           return;
         }
         if(!f.type.startsWith('image') && !/\.(jpe?g|png|webp|bmp|gif)$/i.test(f.name)){
           errSpan.textContent = 'الرجاء رفع صورة فقط.';
           container.appendChild(errSpan);
           input.value = '';
-          info.innerHTML = '';
+          nameSpan.textContent = '';
+          sizeSpan.textContent = '';
+          clearBtn.style.display = 'none';
           return;
         }
       }
