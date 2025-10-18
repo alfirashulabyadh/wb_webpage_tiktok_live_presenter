@@ -30,20 +30,22 @@
       input.value = '';
       nameSpan.textContent = '';
       sizeSpan.textContent = '';
-      // visually remove info
-      info.innerHTML = '';
+      // hide clear button until next selection
+      clearBtn.style.display = 'none';
     });
     // ensure info container is empty and append the elements
     info.innerHTML = '';
     info.appendChild(nameSpan);
     info.appendChild(sizeSpan);
     info.appendChild(clearBtn);
+    // clear button hidden until a file is selected
+    clearBtn.style.display = 'none';
 
     input.addEventListener('change', ()=>{
       // remove previous error if any
       const existing = container.querySelector('.error-file');
       if(existing) existing.remove();
-      if(!input.files || input.files.length===0){ nameSpan.textContent=''; sizeSpan.textContent=''; return }
+  if(!input.files || input.files.length===0){ nameSpan.textContent=''; sizeSpan.textContent=''; clearBtn.style.display='none'; return }
       const f = input.files[0];
       const maxAudio = 20 * 1024 * 1024; // 20MB
       const maxPhoto = 7 * 1024 * 1024; // 7MB (changed per request)
@@ -55,6 +57,8 @@
   const sizeText = mb >= 1 ? `${mb} م.ب.` : `${kb} ك.ب.`;
   nameSpan.textContent = `تم اختيار الملف – الحجم: ${sizeText}`;
   sizeSpan.textContent = '';
+  // show clear button when a file is selected
+  clearBtn.style.display = '';
 
       const errSpan = document.createElement('div');
       errSpan.className = 'error-file';
