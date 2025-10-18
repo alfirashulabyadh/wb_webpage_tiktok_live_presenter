@@ -44,8 +44,8 @@ async function handleRequest(request, event){
   }
 
   // Basic server-side size limits (note: Cloudflare Workers also have platform limits)
-  const MAX_AUDIO = 20 * 1024 * 1024; // 20MB
-  const MAX_PHOTO = 7 * 1024 * 1024; // 7MB (updated per request)
+  const MAX_AUDIO = 4 * 1024 * 1024; // 4MB
+  const MAX_PHOTO = 2 * 1024 * 1024; // 2MB
 
   const formData = await request.formData();
 

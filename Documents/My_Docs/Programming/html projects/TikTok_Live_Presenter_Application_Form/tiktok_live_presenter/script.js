@@ -47,8 +47,8 @@
       if(existing) existing.remove();
   if(!input.files || input.files.length===0){ nameSpan.textContent=''; sizeSpan.textContent=''; clearBtn.style.display='none'; return }
       const f = input.files[0];
-      const maxAudio = 20 * 1024 * 1024; // 20MB
-      const maxPhoto = 7 * 1024 * 1024; // 7MB (changed per request)
+  const maxAudio = 4 * 1024 * 1024; // 4MB
+  const maxPhoto = 2 * 1024 * 1024; // 2MB
 
   // format size nicely and follow exact requested text
   const kb = Math.round(f.size/1024);
@@ -67,7 +67,7 @@
 
       if(input.name === 'audio'){
         if(f.size > maxAudio){
-          errSpan.textContent = 'حجم الملف أكبر من 20 م.ب.';
+          errSpan.textContent = 'حجم الملف أكبر من 4 م.ب.';
           container.appendChild(errSpan);
           input.value = '';
           // keep the info elements in DOM so they can be reused on next selection
@@ -88,7 +88,7 @@
       }
       if(input.name === 'photo'){
         if(f.size > maxPhoto){
-          errSpan.textContent = 'حجم الصورة أكبر من 7 م.ب.';
+          errSpan.textContent = 'حجم الصورة أكبر من 2 م.ب.';
           container.appendChild(errSpan);
           input.value = '';
           nameSpan.textContent = '';
