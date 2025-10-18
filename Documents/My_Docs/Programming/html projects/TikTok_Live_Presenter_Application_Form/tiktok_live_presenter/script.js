@@ -12,52 +12,84 @@
     form.scrollIntoView({behavior:'smooth'});
   });
 
-  // enhance file inputs to show upload info
+  // enhance file inputs to show upload info and provide a clear (x) button
   document.querySelectorAll('input[type=file]').forEach(input=>{
-    const info = input.parentElement.querySelector('.upload-info');
+    const container = input.parentElement;
+    const info = container.querySelector('.upload-info');
+    // create elements for name/size and clear button
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'file-name';
+    const sizeSpan = document.createElement('span');
+    sizeSpan.className = 'file-size';
+    const clearBtn = document.createElement('button');
+    clearBtn.type = 'button';
+    clearBtn.className = 'clear-file';
+    clearBtn.textContent = '×';
+    clearBtn.title = 'إلغاء اختيار الملف';
+    clearBtn.addEventListener('click', ()=>{
+      input.value = '';
+      nameSpan.textContent = '';
+      sizeSpan.textContent = '';
+      // visually remove info
+      info.innerHTML = '';
+    });
+    // ensure info container is empty and append the elements
+    info.innerHTML = '';
+    info.appendChild(nameSpan);
+    info.appendChild(sizeSpan);
+    info.appendChild(clearBtn);
+
     input.addEventListener('change', ()=>{
-      if(!input.files || input.files.length===0){ info.textContent=''; return }
+      // remove previous error if any
+      const existing = container.querySelector('.error-file');
+      if(existing) existing.remove();
+      if(!input.files || input.files.length===0){ nameSpan.textContent=''; sizeSpan.textContent=''; return }
       const f = input.files[0];
-      info.textContent = `${f.name} (${Math.round(f.size/1024)} KB)`;
-      // client-side validation: size + mime
       const maxAudio = 20 * 1024 * 1024; // 20MB
-      const maxPhoto = 5 * 1024 * 1024; // 5MB
+      const maxPhoto = 7 * 1024 * 1024; // 7MB (changed per request)
+
+  // format size nicely and follow exact requested text
+  const kb = Math.round(f.size/1024);
+  const mb = Math.round((f.size/1024/1024)*10)/10;
+  // show single phrase: "تم اختيار الملف – الحجم: <الحجم>"
+  const sizeText = mb >= 1 ? `${mb} م.ب.` : `${kb} ك.ب.`;
+  nameSpan.textContent = `تم اختيار الملف – الحجم: ${sizeText}`;
+  sizeSpan.textContent = '';
+
       const errSpan = document.createElement('div');
       errSpan.className = 'error-file';
       errSpan.style.color = '#b00020';
       errSpan.style.fontSize = '13px';
-      // remove old error
-      const existing = input.parentElement.querySelector('.error-file');
-      if(existing) existing.remove();
+
       if(input.name === 'audio'){
         if(f.size > maxAudio){
           errSpan.textContent = 'حجم الملف أكبر من 20 م.ب.';
-          input.parentElement.appendChild(errSpan);
-          info.textContent = '';
+          container.appendChild(errSpan);
           input.value = '';
+          info.innerHTML = '';
           return;
         }
-        if(!f.type.startsWith('audio')){
+        if(!f.type.startsWith('audio') && !/\.(mp3|wav|m4a|ogg)$/i.test(f.name)){
           errSpan.textContent = 'الرجاء رفع ملف صوتي فقط.';
-          input.parentElement.appendChild(errSpan);
-          info.textContent = '';
+          container.appendChild(errSpan);
           input.value = '';
+          info.innerHTML = '';
           return;
         }
       }
       if(input.name === 'photo'){
         if(f.size > maxPhoto){
-          errSpan.textContent = 'حجم الصورة أكبر من 5 م.ب.';
-          input.parentElement.appendChild(errSpan);
-          info.textContent = '';
+          errSpan.textContent = 'حجم الصورة أكبر من 7 م.ب.';
+          container.appendChild(errSpan);
           input.value = '';
+          info.innerHTML = '';
           return;
         }
-        if(!f.type.startsWith('image')){
+        if(!f.type.startsWith('image') && !/\.(jpe?g|png|webp|bmp|gif)$/i.test(f.name)){
           errSpan.textContent = 'الرجاء رفع صورة فقط.';
-          input.parentElement.appendChild(errSpan);
-          info.textContent = '';
+          container.appendChild(errSpan);
           input.value = '';
+          info.innerHTML = '';
           return;
         }
       }

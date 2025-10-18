@@ -39,6 +39,10 @@ input:invalid + .error, select:invalid + .error, textarea:invalid + .error{displ
 .checkbox-inline{display:flex;align-items:center;gap:8px}
 .form-actions{display:flex;align-items:center;gap:16px}
 .form-messages{color:#b00020;font-weight:600}
+.upload-info{margin-top:6px;font-size:13px;color:#333;display:flex;align-items:center;gap:8px}
+.upload-info .file-name{font-size:13px;color:#333}
+.upload-info .file-size{font-size:12px;color:#666}
+.upload-info .clear-file{background:none;border:none;color:var(--accent);font-weight:700;cursor:pointer;padding:2px 6px;border-radius:4px}
 .footer{display:flex;justify-content:center;padding:18px 0}
 .logo{max-height:60px;opacity:0.95}
 .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.45)}
