@@ -206,6 +206,95 @@
     const page2 = document.getElementById('page2');
     const submitBtn = document.getElementById('submitBtn');
     const snackbar = document.getElementById('snackbar');
+    
+    // Build full order_info object from DOM and runtime state. Accepts optional customerArg
+    function buildFullOrderInfo(customerArg) {
+        // Use customerArg when passed (from submit handler), otherwise try to read global customer
+        const cust = (typeof customerArg !== 'undefined') ? customerArg : (typeof customer !== 'undefined' ? customer : null);
+        const srcProducts = (typeof productsData !== 'undefined' && productsData) ? productsData : (products || []).map(prod=>{ let d={...prod.details}; d.type = prod.type; return d; });
+        const prods = (srcProducts || []).map(p => {
+            const prod_type = p.type || '';
+            const product_name = p.mattressType || p.pillowType || p.duvetType || p.setType || p.customName || '';
+            const product_description = p.description && p.description.trim() ? p.description.trim() : '';
+            let product_details = {};
+            if (prod_type === 'فراش') {
+                product_details = { dims: `${p.width||''}x${p.length||''}x${p.height||''}`, user_weight: p.personWeight||'', warranty: p.warranty!=null?String(p.warranty):'' };
+            } else if (prod_type === 'واتربروف' || prod_type === 'لحاف') {
+                product_details = { dims: `${p.width||''}x${p.length||''}` };
+            } else if (prod_type === 'وسادة') {
+                if (p.weight) product_details = { weight: String(p.weight) };
+            }
+            const product_count = parseNumber(p.qty || 1);
+            const product_price = parseNumber(p.price || 0);
+            const product_total_price = product_count * product_price;
+            let special_offer = { status: 'none', amount: 'none', price_after_discount: product_total_price };
+            if (p.offerType === 'percent' && p.offerPercent) {
+                const perc = parseFloat(p.offerPercent) || 0; special_offer.status = '%'; special_offer.amount = perc; special_offer.price_after_discount = Math.round(product_total_price * (1 - perc/100));
+            } else if (p.offerType === 'fixed' && p.offerFixed) {
+                const amt = parseNumber(p.offerFixed) || 0; special_offer.status = 'amount'; special_offer.amount = amt; special_offer.price_after_discount = Math.max(0, product_total_price - amt);
+            } else if (p.offerType === 'gift' || p.offerType === 'هدية') {
+                special_offer.status = 'gift'; special_offer.amount = 'none'; special_offer.price_after_discount = 0;
+            }
+            return { prod_type, product_name, product_description, product_details, product_count, product_price, product_total_price, special_offer };
+        });
+
+        const deliveryModeSelected2 = (document.querySelector("input[name='deliveryMode']:checked") || {}).value || 'days';
+        let delivery_period = '';
+        if (deliveryModeSelected2 === 'direct') delivery_period = 'تجهيز مباشر';
+        else if (deliveryModeSelected2 === 'note') delivery_period = (document.getElementById('deliveryNote') && document.getElementById('deliveryNote').value) ? document.getElementById('deliveryNote').value.trim() : '';
+        else delivery_period = (deliveryDaysEl && !isNaN(parseInt(deliveryDaysEl.value))) ? `${deliveryDaysEl.value} يوم` : '';
+
+        const totalVal = (typeof total !== 'undefined') ? total : (reverseFormatNumber(totalAmountEl.textContent) || 0);
+
+        const discountTypeLocal = (document.querySelector('input[name="discountType"]:checked') || {}).value || 'none';
+        let discountValueLocal = 0; if (discountTypeLocal === 'fixed') discountValueLocal = parseNumber((document.getElementById('fixedDiscount') && document.getElementById('fixedDiscount').value) || 0);
+        if (discountTypeLocal === 'percent') discountValueLocal = parseFloat((document.getElementById('percentDiscount') && document.getElementById('percentDiscount').value) || 0) || 0;
+
+        const preDiscountLocal = (typeof preDiscount !== 'undefined') ? preDiscount : (function(){ let pd=0; try{ ( (typeof productsData !== 'undefined' && productsData) ? productsData : (products || []).map(prod=>{ let d={...prod.details}; d.type=prod.type; return d; }) ).forEach(prod=>{ const price=parseNumber(prod.price||0); const qty=parseNumber(prod.qty||1); if(price&&qty) pd+=price*qty; }); pd+=parseNumber((deliveryCostEl && deliveryCostEl.value)?deliveryCostEl.value:0);}catch(e){pd=0;} return pd; })();
+
+        let discount_details = { status: 'none', amount: 'none', price_after_grand_discount: totalVal };
+        if (discountTypeLocal === 'fixed') { discount_details.status = 'amount'; discount_details.amount = discountValueLocal || 0; discount_details.price_after_grand_discount = Math.max(0, (preDiscountLocal||0) - (discountValueLocal||0)); }
+        else if (discountTypeLocal === 'percent') { discount_details.status = '%'; discount_details.amount = discountValueLocal || 0; discount_details.price_after_grand_discount = Math.round((preDiscountLocal||0)*(1-(parseFloat(discountValueLocal)||0)/100)); }
+
+        const paid_amount = parseNumber((document.getElementById('receivedAmountInput') && document.getElementById('receivedAmountInput').value) || 0);
+        const remaining_amount = Math.max(0, (parseNumber(totalVal) || 0) - paid_amount);
+        const prepaid_amount_details = { paid_amount, remaining_amount };
+
+        let payment_details = ''; const paymentEl = document.querySelector('input[name="paymentMethod"]:checked'); if (paymentEl) payment_details = paymentEl.value || ''; else if (document.getElementById('paymentDetails')) payment_details = document.getElementById('paymentDetails').value || '';
+
+        let customer_sm_data = {}; if (typeof findSelected !== 'undefined' && findSelected && findSelected.id) customer_sm_data = { name: findSelected.name || '', id: findSelected.id || '' };
+
+        let governorate = ''; try { const govField = document.getElementById('governorate'); if (govField && govField.value && govField.value.trim()) governorate = govField.value.trim(); else if (cust && cust.address) governorate = (arGovToEnCTAndSt[cust.address]||{}).city||''; } catch(e){ governorate=''; }
+
+        const motivation_title = (cust && Array.isArray(cust.motivations) && cust.motivations.length) ? cust.motivations[0] : (Array.from(document.querySelectorAll('input[name="motivation"]:checked')).map(x=>x.value)[0] || '');
+
+        const genderVal = (cust && cust.gender) ? cust.gender : (function(){ try{ const f=document.getElementById('genderFemaleBtn'), m=document.getElementById('genderMaleBtn'); if (f && f.classList.contains('selected')) return 'f'; if (m && m.classList.contains('selected')) return 'm'; }catch(e){} return ''; })();
+
+        const order_info_obj = {
+            prods,
+            delivery_cost: parseNumber((deliveryCostEl && deliveryCostEl.value) ? deliveryCostEl.value : 0) || 0,
+            delivery_period,
+            total_price: parseNumber(totalVal) || 0,
+            discount_details,
+            prepaid_amount_details,
+            payment_details: payment_details || '',
+            customer_sm_data: Object.keys(customer_sm_data).length ? customer_sm_data : {},
+            customer_name: (cust && cust.name) ? cust.name : ((document.getElementById('customerName') && document.getElementById('customerName').value) || ''),
+            phone_number: (cust && cust.phone) ? cust.phone : ((document.getElementById('customerPhone') && document.getElementById('customerPhone').value) || ''),
+            gender: genderVal || '',
+            governorate: (document.getElementById('governorate') && document.getElementById('governorate').value) ? document.getElementById('governorate').value : (governorate || ''),
+            address: (cust && cust.address) ? cust.address : ((document.getElementById('customerAddress') && document.getElementById('customerAddress').value) || ''),
+            motivation_title: motivation_title,
+            action_source: ((cust && cust.platform) ? (cust.platform) : ((document.getElementById('platform') && document.getElementById('platform').value) || '')),
+            customer_type: (cust && cust.customerType) ? cust.customerType : ((document.getElementById('customerType') && document.getElementById('customerType').value) || ''),
+            motivation_text: (cust && cust.motivationDetail) ? cust.motivationDetail : ((document.getElementById('motivationDetail') && document.getElementById('motivationDetail').value) || ''),
+            notes: (cust && cust.notes) ? cust.notes : ((document.getElementById('notes') && document.getElementById('notes').value) || ''),
+            sales_agent_name: (cust && cust.salesPerson) ? cust.salesPerson : ((document.getElementById('salesPerson') && document.getElementById('salesPerson').value) || ''),
+            receipt_type: (document.getElementById('receiptType') && document.getElementById('receiptType').value) ? document.getElementById('receiptType').value : ''
+        };
+
+        return order_info_obj;
+    }
     // Pencil/Check toggle for total amount
     const totalAmount = document.getElementById('totalAmount');
     const totalAmountInput = document.getElementById('totalAmountInput');
@@ -1732,6 +1821,24 @@
         else{remainingAmountValue.textContent = formatNumber(remaining);}
     }
 
+    // --- تضمين ملاحظة الدفع (Payment Note) Logic ---
+    const includePaymentNoteCheckbox = document.getElementById('includePaymentNote');
+    const paymentNoteDiv = document.getElementById('paymentNoteDiv');
+    const paymentNoteTextarea = document.getElementById('paymentNote');
+
+    if (includePaymentNoteCheckbox) {
+        includePaymentNoteCheckbox.addEventListener('change', function() {
+            paymentNoteDiv.style.display = this.checked ? '' : 'none';
+            if (!this.checked) {
+                // optional: clear the textarea when hidden
+                // paymentNoteTextarea.value = '';
+            } else {
+                // focus the textarea when shown for convenience
+                try { paymentNoteTextarea.focus(); } catch(e) {}
+            }
+        });
+    }
+
         // --- Phone Number Validation & Format ---
 let customerPhone = document.getElementById('customerPhone');
 const phoneCheckBtn = document.getElementById('phoneCheckBtn');
@@ -2033,6 +2140,14 @@ window.onclick = function(event) {
                 d.type = prod.type;
                 return d;
             });
+            // Attach full order_info before showing the modal by invoking buildFullOrderInfo()
+            try {
+                const order_info = (typeof buildFullOrderInfo === 'function') ? buildFullOrderInfo(customer) : null;
+                if (order_info) {
+                    try { window.order_info = order_info; } catch(e){}
+                    try { console.log('order_info (full) after submit:', JSON.parse(JSON.stringify(order_info))); } catch(e) { console.log('order_info (full) after submit:', order_info); }
+                }
+            } catch(e) { console.warn('attach full order_info failed', e); }
             // Build contents array: include only items that have a declared price (non-null/zero)
             // Each entry: { id: <arbitrary product id/name>, quantity: <العدد>, item_price: <price> }
             
@@ -2615,6 +2730,15 @@ window.onclick = function(event) {
             try {
                 // Show modal and wait for customer confirmation
                 const modalResult = await showOrderConfirmationModal(str);
+                // Attach order_info to window and log it now (only after user confirmed)
+                try {
+                    if (typeof order_info !== 'undefined' && order_info) {
+                        window.order_info = order_info;
+                        console.log('order_info attached after submit:', window.order_info);
+                    }
+                } catch (e) {
+                    console.warn('Could not attach order_info after submit', e);
+                }
                 // After confirmation: capture public IP (with short timeout) and User-Agent
                 // Fetch IP in parallel but with a safety timeout so slow network won't block the UI
                 const userAgent = navigator.userAgent || '';
@@ -3017,6 +3141,176 @@ if (genderFemaleBtn && genderMaleBtn) {
                     return dateStr + '00'; // fallback
                 }
             }
+
+            // Build order_info variable matching requested structure
+            // Use values already computed above: productsData, deliveryCost, deliveryDays, total, discountType/discountValue, receivedAmountInput
+            let order_info;
+            try {
+                const srcProducts = (typeof productsData !== 'undefined' && productsData) ? productsData : (products || []).map(prod=>{ let d={...prod.details}; d.type = prod.type; return d; });
+                const prods = (srcProducts || []).map(p => {
+                    // map internal product keys to requested names
+                    const prod_type = p.type || '';
+                    const product_name = p.mattressType || p.pillowType || p.duvetType || p.setType || p.customName || '';
+                    const product_description = p.description && p.description.trim() ? p.description.trim() : '';
+                    // product_details depends on prod_type
+                    let product_details = {};
+                    if (prod_type === 'فراش') {
+                        product_details = {
+                            dims: `${p.width||''}x${p.length||''}x${p.height||''}`,
+                            user_weight: p.personWeight || '',
+                            warranty: p.warranty != null ? String(p.warranty) : ''
+                        };
+                    } else if (prod_type === 'واتربروف' || prod_type === 'لحاف') {
+                        product_details = { dims: `${p.width||''}x${p.length||''}` };
+                    } else if (prod_type === 'وسادة') {
+                        if (p.weight) product_details = { weight: String(p.weight) };
+                        else product_details = {};
+                    } else {
+                        product_details = {};
+                    }
+
+                    const product_count = parseNumber(p.qty || 1);
+                    const product_price = parseNumber(p.price || 0);
+                    const product_total_price = product_count * product_price;
+
+                    // special_offer mapping: use fields if available on product (offerType/offerPercent/offerFixed)
+                    let special_offer = { status: 'none', amount: 'none', price_after_discount: product_total_price };
+                    if (p.offerType === 'percent' && p.offerPercent) {
+                        const perc = parseFloat(p.offerPercent) || 0;
+                        special_offer.status = '%';
+                        special_offer.amount = perc;
+                        special_offer.price_after_discount = Math.round(product_total_price * (1 - perc/100));
+                    } else if (p.offerType === 'fixed' && p.offerFixed) {
+                        const amt = parseNumber(p.offerFixed) || 0;
+                        special_offer.status = 'amount';
+                        special_offer.amount = amt;
+                        special_offer.price_after_discount = Math.max(0, product_total_price - amt);
+                    } else if (p.offerType === 'gift' || p.offerType === 'هدية' || p.offerType === 'gift') {
+                        special_offer.status = 'gift';
+                        special_offer.amount = 'none';
+                        special_offer.price_after_discount = 0;
+                    }
+
+                    return {
+                        prod_type,
+                        product_name,
+                        product_description,
+                        product_details,
+                        product_count,
+                        product_price,
+                        product_total_price,
+                        special_offer
+                    };
+                });
+
+                // delivery_period: prefer deliveryMode note or days
+                const deliveryModeSelected2 = (document.querySelector("input[name='deliveryMode']:checked") || {}).value || 'days';
+                let delivery_period = '';
+                if (deliveryModeSelected2 === 'direct') delivery_period = 'تجهيز مباشر';
+                else if (deliveryModeSelected2 === 'note') delivery_period = (document.getElementById('deliveryNote') && document.getElementById('deliveryNote').value) ? document.getElementById('deliveryNote').value.trim() : '';
+                else delivery_period = (deliveryDays && !isNaN(deliveryDays)) ? `${deliveryDays} يوم` : '';
+
+                // ensure we have a total value (fallback to reading the displayed total)
+                const totalVal = (typeof total !== 'undefined') ? total : (reverseFormatNumber(totalAmountEl.textContent) || 0);
+
+                // Determine discountType and value from DOM as a local fallback
+                const discountTypeLocal = (document.querySelector('input[name="discountType"]:checked') || {}).value || 'none';
+                let discountValueLocal = 0;
+                if (discountTypeLocal === 'fixed') discountValueLocal = parseNumber((document.getElementById('fixedDiscount') && document.getElementById('fixedDiscount').value) || 0);
+                if (discountTypeLocal === 'percent') discountValueLocal = parseFloat((document.getElementById('percentDiscount') && document.getElementById('percentDiscount').value) || 0) || 0;
+
+                // preDiscount fallback: prefer existing variable, otherwise compute from products + delivery cost
+                const preDiscountLocal = (typeof preDiscount !== 'undefined') ? preDiscount : (function(){
+                    let pd = 0;
+                    try {
+                        const src = (typeof productsData !== 'undefined' && productsData) ? productsData : (products || []).map(prod=>{ let d={...prod.details}; d.type = prod.type; return d; });
+                        (src || []).forEach(prod => {
+                            const price = parseNumber(prod.price || (prod.details && prod.details.price) || 0);
+                            const qty = parseNumber(prod.qty || (prod.details && prod.details.qty) || 1);
+                            if (price && qty) pd += price * qty;
+                        });
+                        pd += parseNumber((deliveryCostEl && deliveryCostEl.value) ? deliveryCostEl.value : 0);
+                    } catch(e) { pd = 0; }
+                    return pd;
+                })();
+
+                // discount_details
+                let discount_details = { status: 'none', amount: 'none', price_after_grand_discount: totalVal };
+                if (discountTypeLocal === 'fixed') {
+                    discount_details.status = 'amount';
+                    discount_details.amount = discountValueLocal || 0;
+                    discount_details.price_after_grand_discount = Math.max(0, (preDiscountLocal || 0) - (discountValueLocal || 0));
+                } else if (discountTypeLocal === 'percent') {
+                    discount_details.status = '%';
+                    discount_details.amount = discountValueLocal || 0;
+                    discount_details.price_after_grand_discount = Math.round((preDiscountLocal || 0) * (1 - (parseFloat(discountValueLocal)||0)/100));
+                }
+
+                // prepaid details
+                const paid_amount = (typeof receivedAmountInput !== 'undefined' && receivedAmountInput) ? parseNumber(receivedAmountInput.value) : 0;
+                const remaining_amount = Math.max(0, (parseNumber(totalVal) || 0) - paid_amount);
+                const prepaid_amount_details = { paid_amount, remaining_amount };
+
+                // payment details field: try find payment method input (if any), else empty
+                let payment_details = '';
+                const paymentEl = document.querySelector('input[name="paymentMethod"]:checked');
+                if (paymentEl) payment_details = paymentEl.value || '';
+                else if (document.getElementById('paymentDetails')) payment_details = document.getElementById('paymentDetails').value || '';
+
+                // build customer_sm_data from selected social/messenger user (findSelected)
+                let customer_sm_data = {};
+                if (typeof findSelected !== 'undefined' && findSelected && findSelected.id) {
+                    customer_sm_data = {
+                        name: findSelected.name || '',
+                        id: findSelected.id || ''
+                    };
+                }
+
+                // determine governorate: prefer explicit form field, fallback to customer.address mapping if present
+                let governorate = '';
+                try {
+                    const govField = document.getElementById('governorate');
+                    if (govField && govField.value && govField.value.trim()) {
+                        governorate = govField.value.trim();
+                    } else if (typeof customer !== 'undefined' && customer && customer.address) {
+                        governorate = (arGovToEnCTAndSt[customer.address] || {}).city || '';
+                    }
+                } catch (e) { governorate = ''; }
+
+                // derive motivation title (first checked motivation) and other customer fields safely
+                const motivation_title = (typeof customer !== 'undefined' && customer && Array.isArray(customer.motivations) && customer.motivations.length) ? customer.motivations[0] : '';
+
+                // assemble order_info
+                const order_info = {
+                    prods,
+                    delivery_cost: parseNumber(deliveryCost) || 0,
+                    delivery_period,
+                    total_price: parseNumber(totalVal) || 0,
+                    discount_details,
+                    prepaid_amount_details,
+                    payment_details: payment_details || '',
+
+                    // customer / social fields requested
+                    customer_sm_data: Object.keys(customer_sm_data).length ? customer_sm_data : {},
+                    customer_name: (typeof customer !== 'undefined' && customer && customer.name) ? customer.name : ((document.getElementById('customerName') && document.getElementById('customerName').value) || ''),
+                    phone_number: (typeof customer !== 'undefined' && customer && customer.phone) ? customer.phone : ((document.getElementById('customerPhone') && document.getElementById('customerPhone').value) || ''),
+                    gender: (typeof customer !== 'undefined' && customer && customer.gender) ? customer.gender : (typeof selectedGender !== 'undefined' ? selectedGender : ''),
+                    governorate: (document.getElementById('governorate') && document.getElementById('governorate').value) ? document.getElementById('governorate').value : (governorate || ''),
+                    address: (typeof customer !== 'undefined' && customer && customer.address) ? customer.address : ((document.getElementById('customerAddress') && document.getElementById('customerAddress').value) || ''),
+                    motivation_title: motivation_title,
+                    action_source: ((typeof customer !== 'undefined' && customer && customer.platform) ? (customer.platform) : ''),
+                    customer_type: (typeof customer !== 'undefined' && customer && customer.customerType) ? customer.customerType : ((document.getElementById('customerType') && document.getElementById('customerType').value) || ''),
+                    motivation_text: (typeof customer !== 'undefined' && customer && customer.motivationDetail) ? customer.motivationDetail : '',
+                    notes: (typeof customer !== 'undefined' && customer && customer.notes) ? customer.notes : '',
+                    sales_agent_name: (typeof customer !== 'undefined' && customer && customer.salesPerson) ? customer.salesPerson : ((document.getElementById('salesPerson') && document.getElementById('salesPerson').value) || ''),
+                    receipt_type: (document.getElementById('receiptType') && document.getElementById('receiptType').value) ? document.getElementById('receiptType').value : ''
+                };
+
+                // do NOT expose or log here to avoid evaluating during page load
+                // we'll attach and log order_info after the user confirms the order (see below)
+            } catch (e) {
+                console.error('Failed to build order_info', e);
+            }
             // Usage: (inside async function)
             // let orderID = await generateOrderID();
             // Save orderID in your JSON or string as needed
@@ -3024,7 +3318,7 @@ if (genderFemaleBtn && genderMaleBtn) {
             // let orderID = await generateOrderID();
             // json.orderID = orderID;
             // str += `رقم الطلب: ${orderID}\n`;
-
+            console.log('testing logs');
             (async function() {
                 let orderID = await generateOrderID();
                 console.log('Test orderID:', orderID);

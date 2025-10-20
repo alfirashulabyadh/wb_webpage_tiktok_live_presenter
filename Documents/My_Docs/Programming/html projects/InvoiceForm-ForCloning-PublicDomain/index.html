@@ -79,6 +79,16 @@
                     </div>
                 </div>
                 <!-- /مبلغ واصل integration -->
+                <!-- تضمين ملاحظة الدفع (toggle textarea) -->
+                <div id="paymentNoteSection" style="margin:10px 0 8px 0;">
+                    <label style="display:inline-flex;align-items:center;cursor:pointer;">
+                        <input type="checkbox" id="includePaymentNote" style="margin-left:6px;"> تضمين ملاحظة الدفع
+                    </label>
+                    <div id="paymentNoteDiv" style="display:none; margin-top:8px;">
+                        <textarea id="paymentNote" rows="3" placeholder="طريقة الدفع (نقداً، أو كاش)، وقت الدفعات، ...إلخ"></textarea>
+                    </div>
+                </div>
+
                 <button type="button" class="continue-btn" id="continueBtn">متابعة</button>
             </div>
         </form>
